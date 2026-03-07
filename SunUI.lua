@@ -435,9 +435,11 @@ function SaveMgr:Save(data)
     return pcall(writefile,self._file,enc)
 end
 function SaveMgr:Load()
-    if not readfile or not isfile then return {} end
-    local ok,ex=pcall(isfile,self._file); if not ok or not ex then return {} end
-    local ok2,raw=pcall(readfile,self._file); if not ok2 then return {} end
+    if not readfile then return {} end
+    -- isfile pode nao existir em alguns executors (ex: versoes antigas do Xeno)
+    -- tenta ler direto e trata o erro como "arquivo nao existe"
+    local ok2,raw=pcall(readfile,self._file)
+    if not ok2 or type(raw)~="string" or raw=="" then return {} end
     local ok3,dec=pcall(function() return HttpService:JSONDecode(raw) end)
     return (ok3 and type(dec)=="table") and dec or {}
 end
@@ -450,10 +452,10 @@ function SunUI:SaveProfile(name)
     if ok then pcall(writefile,fname,enc) end
 end
 function SunUI:LoadProfile(name)
-    if not readfile or not isfile then return end
+    if not readfile then return end
     local fname="SunUI_Profile_"..tostring(name)..".json"
-    local ok,ex=pcall(isfile,fname); if not ok or not ex then return end
-    local ok2,raw=pcall(readfile,fname); if not ok2 then return end
+    local ok2,raw=pcall(readfile,fname)
+    if not ok2 or type(raw)~="string" or raw=="" then return end
     local ok3,dec=pcall(function() return HttpService:JSONDecode(raw) end)
     if ok3 and type(dec)=="table" then
         for k,v in pairs(dec) do self.Flags[k]=v end
@@ -1081,10 +1083,10 @@ end
 -- ════════════════════════════════════════════════
 local function MakeBgManager(container,T,onApply)
     local saved={}
-    if readfile and isfile then
+    if readfile then
         pcall(function()
-            if isfile("SunUI_Backgrounds.json") then
-                local raw=readfile("SunUI_Backgrounds.json")
+            local raw=readfile("SunUI_Backgrounds.json")
+            if type(raw)=="string" and raw~="" then
                 local ok,dec=pcall(function() return HttpService:JSONDecode(raw) end)
                 if ok and type(dec)=="table" then saved=dec end
             end
@@ -1458,27 +1460,83 @@ function SunUI:CreateWindow(opts)
     self._notifyPos=notifyPos
     SaveMgr:SetFile(tostring(opts.ConfigFile or "SunUI_Config"))
 
-    -- Limpar instância anterior
-    pcall(function() CoreGui["SunUI_5_1"]:Destroy() end)
+    -- Limpar instância anterior (tenta nos três containers possíveis)
+    for _,_n in ipairs({"SunUI_5_2","SunUI_5_1"}) do
+        pcall(function() CoreGui[_n]:Destroy() end)
+        if LP then pcall(function() LP.PlayerGui[_n]:Destroy() end) end
+        if gethui then pcall(function() gethui()[_n]:Destroy() end) end
+    end
 
     -- Reset tracking
     self._borders={}; self._accents={}
     self._rbRunning=false; self._notifyCon=nil
     self._tipFrame=nil; self._tipLabel=nil
 
-    -- ── ScreenGui
+    -- ── ScreenGui — ordem de tentativas:
+    -- 1. gethui()         (Xeno, Fluxus, Delta)
+    -- 2. cloneref CoreGui (Synapse X, KRNL)
+    -- 3. CoreGui direto   (outros)
+    -- 4. PlayerGui        (fallback universal)
     local Screen
-    pcall(function() Screen=Instance.new("ScreenGui") Screen.Name="SunUI_5_1" Screen.ResetOnSpawn=false Screen.ZIndexBehavior=Enum.ZIndexBehavior.Sibling Screen.Parent=CoreGui end)
-    if not Screen or not Screen.Parent then
+    local GUI_NAME = "SunUI_5_2"
+
+    -- Tentativa 1: gethui() — método preferido no Xeno
+    if not Screen and type(gethui) == "function" then
         pcall(function()
-            Screen=Instance.new("ScreenGui") Screen.Name="SunUI_5_1" Screen.ResetOnSpawn=false
-            Screen.ZIndexBehavior=Enum.ZIndexBehavior.Sibling
-            Screen.Parent=LP:WaitForChild("PlayerGui",5)
+            local hui = gethui()
+            Screen = Instance.new("ScreenGui")
+            Screen.Name = GUI_NAME
+            Screen.ResetOnSpawn = false
+            Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            Screen.Parent = hui
+        end)
+        if Screen and not Screen.Parent then Screen = nil end
+    end
+
+    -- Tentativa 2: cloneref(CoreGui) — Synapse X / KRNL
+    if not Screen and type(cloneref) == "function" then
+        pcall(function()
+            local safeCore = cloneref(game:GetService("CoreGui"))
+            Screen = Instance.new("ScreenGui")
+            Screen.Name = GUI_NAME
+            Screen.ResetOnSpawn = false
+            Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            Screen.Parent = safeCore
+        end)
+        if Screen and not Screen.Parent then Screen = nil end
+    end
+
+    -- Tentativa 3: CoreGui direto
+    if not Screen then
+        pcall(function()
+            Screen = Instance.new("ScreenGui")
+            Screen.Name = GUI_NAME
+            Screen.ResetOnSpawn = false
+            Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            Screen.Parent = CoreGui
+        end)
+        if Screen and not Screen.Parent then Screen = nil end
+    end
+
+    -- Tentativa 4: PlayerGui (fallback universal)
+    if not Screen then
+        pcall(function()
+            local pg = LP and LP:WaitForChild("PlayerGui", 5)
+            if not pg then return end
+            Screen = Instance.new("ScreenGui")
+            Screen.Name = GUI_NAME
+            Screen.ResetOnSpawn = false
+            Screen.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+            Screen.Parent = pg
         end)
     end
+
     if not Screen then return {} end
+
+    -- protect_gui — tenta todos os métodos conhecidos
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(Screen) end end)
     pcall(function() if protect_gui then protect_gui(Screen) end end)
+    -- gethui() ja eh seguro por natureza no Xeno (nao precisa de protect)
 
     self._screen=Screen
     SetupTooltip(Screen,T)
