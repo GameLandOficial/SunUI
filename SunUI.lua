@@ -1,7 +1,7 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
-║   ☀  SunUI  •  v5.5  •  RELEASE EDITION                            ║
-║   100% Bug-Free  •  Universal  •  Design Lost-Hub inspired          ║
+║   ☀  SunUI  •  v6  •  RELEASE EDITION                               ║
+║   100% Bug-Free  •  Universal  •  Design inspired                    ║
 ║                                                                      ║
 ║   DESTAQUES:                                                         ║
 ║   ✦ 6 temas prontos + suporte a tema customizado                   ║
