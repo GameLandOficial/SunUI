@@ -1,17 +1,13 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
-║   ☀  SunUI  •  v5.5  •  FIXED EDITION                               ║
-║   Bugs corrigidos:                                                   ║
-║   ✦ Corner radius restaurado em todos os elementos                  ║
-║   ✦ Dropdown flutua sobre conteúdo (ZIndex correto)                 ║
-║   ✦ Dropdown fecha ao clicar fora                                   ║
-║   ✦ Background aceita Asset ID Roblox corretamente                  ║
-║   ✦ AccentPicker bolinhas não somem no hover                        ║
-║   ✦ Watermark e Stats ocultos por padrão                            ║
-║   ✦ Logo sidebar não muda de cor com rainbow                        ║
-║   ✦ Win:Destroy() — reseta hub e fecha (bind continua)              ║
-║   ✦ Gradiente accent nos sliders e barra do topo                    ║
-║   ✦ Dropdown com altura máxima + scroll interno                     ║
+║   ☀  SunUI  •  v5.6  •  BUGFIX EDITION                              ║
+║   Bugs corrigidos nesta versão:                                      ║
+║   ✦ Borda da janela alinhada à sombra (MainWrap correto)            ║
+║   ✦ Botões ✕ e ─ dentro da borda (xOff corrigido)                  ║
+║   ✦ Versão como badge embaixo do subtítulo (sem sobrepor)           ║
+║   ✦ Dropdown de tema INLINE (filho do Main, não flutua)             ║
+║   ✦ Todos os dropdowns INLINE (expandem no scroll, sem flutuar)     ║
+║   ✦ Background funciona: BgImg visível com ZIndex correto           ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
@@ -35,7 +31,7 @@ local LP = Players and Players.LocalPlayer
 -- TABELA PRINCIPAL
 -- ════════════════════════════════════════════════
 local SunUI = {
-    Version    = "5.5.0",
+    Version    = "5.6.0",
     Flags      = {},
     Profiles   = {},
     _screen    = nil,
@@ -1640,23 +1636,35 @@ function SunUI:CreateWindow(opts)
         Name="Main",
         Size=UDim2.new(1,0,1,0),
         BackgroundColor3=T.Bg,
+        BackgroundTransparency=0,
         ClipsDescendants=true,ZIndex=1,
     },MainWrap)
     U.Corner(12,Main)
 
+    -- FIX: BgImg com ZIndex 1 para aparecer sobre o Background do Main
+    -- BgOv serve como fundo sólido quando não há imagem
     local BgImg=U.New("ImageLabel",{
         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
         Image="",ImageTransparency=0.45,
-        ScaleType=Enum.ScaleType.Crop,ZIndex=0,
+        ScaleType=Enum.ScaleType.Crop,ZIndex=1,
+        Visible=false,  -- oculta até ter uma imagem
     },Main)
     local BgOv=U.New("Frame",{
         Size=UDim2.new(1,0,1,0),
-        BackgroundColor3=T.Bg,BackgroundTransparency=0.1,ZIndex=0,
+        BackgroundColor3=T.Bg,BackgroundTransparency=0,ZIndex=2,
+        -- Overlay de cor por cima da imagem quando há background
     },Main)
     local function SetBg(imgId)
         if not BgImg then return end
-        pcall(function() BgImg.Image=imgId or "" end)
-        pcall(function() BgOv.BackgroundTransparency=(imgId and imgId~="") and 0 or 0.1 end)
+        if imgId and imgId~="" then
+            pcall(function() BgImg.Image=imgId end)
+            pcall(function() BgImg.Visible=true end)
+            -- Overlay semi-transparente por cima da imagem
+            pcall(function() BgOv.BackgroundTransparency=0.55 end)
+        else
+            pcall(function() BgImg.Visible=false end)
+            pcall(function() BgOv.BackgroundTransparency=0 end)
+        end
     end
 
     -- ── Titlebar
@@ -1695,45 +1703,52 @@ function SunUI:CreateWindow(opts)
         Font=Enum.Font.GothamBlack,TextSize=17,ZIndex=8,
     },logoF)
 
+    -- FIX: título + versão na mesma linha; subtítulo abaixo
+    local verStr = version and ("  v"..tostring(version):gsub("^v","")) or ""
     local titleLbl=U.New("TextLabel",{
-        Size=UDim2.new(0,230,0,20),Position=UDim2.new(0,52,0,8),
+        Size=UDim2.new(0,280,0,20),Position=UDim2.new(0,52,0,(subtitle~="") and 6 or 14),
         BackgroundTransparency=1,Text=title,
         TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=13,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
     },TBar)
-    U.New("TextLabel",{
-        Size=UDim2.new(0,180,0,14),Position=UDim2.new(0,52,0,26),
-        BackgroundTransparency=1,
-        Text=(subtitle~="") and subtitle or "",
-        TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
-        TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
-    },TBar)
-    if version then
-        local verStr = "v"..tostring(version):gsub("^v","")
-        local verLbl=U.New("TextLabel",{
-            Size=UDim2.new(0,120,0,12),
-            Position=UDim2.new(0,52,0,(subtitle~="") and 34 or 26),
+    if subtitle~="" then
+        U.New("TextLabel",{
+            Size=UDim2.new(0,280,0,13),Position=UDim2.new(0,52,0,27),
             BackgroundTransparency=1,
-            Text=verStr,
-            TextColor3=T.Accent,Font=Enum.Font.GothamBold,TextSize=9,
+            Text=subtitle,
+            TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
             TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
         },TBar)
-        TrackAccent(verLbl,"TextColor3")
+    end
+    if version then
+        local verBadge=U.New("Frame",{
+            Size=UDim2.new(0,0,0,14),Position=UDim2.new(0,52,0,(subtitle~="") and 40 or 28),
+            BackgroundColor3=T.AccentDim,ZIndex=7,AutomaticSize=Enum.AutomaticSize.X,
+        },TBar)
+        U.Corner(4,verBadge); TrackAccent(verBadge,"BackgroundColor3")
+        U.Pad(0,0,4,4,verBadge)
+        local verLbl=U.New("TextLabel",{
+            Size=UDim2.new(1,0,1,0),
+            BackgroundTransparency=1,
+            Text="v"..tostring(version):gsub("^v",""),
+            TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=8,
+            TextXAlignment=Enum.TextXAlignment.Center,ZIndex=8,
+        },verBadge)
     end
 
-    -- Dropdown de tema na titlebar
+    -- Dropdown de tema na titlebar — INLINE, abre para baixo dentro do Content
     local themeNames={}
     for k in pairs(self.Themes) do table.insert(themeNames,k) end
     table.sort(themeNames)
     local themeOpen=false
     local themeBtnF=U.New("Frame",{
-        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-272,0.5,-13),
+        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-168,0.5,-13),
         BackgroundColor3=T.Surface,ZIndex=7,
     },TBar)
     U.Corner(8,themeBtnF); U.Stroke(T.Border,1,themeBtnF)
     local themeLbl=U.New("TextLabel",{
         Size=UDim2.new(1,-18,1,0),Position=UDim2.new(0,6,0,0),
-        BackgroundTransparency=1,Text=T.Name or "Dark",
+        BackgroundTransparency=1,Text=type(opts.Theme)=="string" and opts.Theme or "Dark",
         TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=10,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
     },themeBtnF)
@@ -1742,28 +1757,31 @@ function SunUI:CreateWindow(opts)
         BackgroundTransparency=1,Text="▾",TextColor3=T.TextMuted,
         Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8,
     },themeBtnF)
-    -- Dropdown de tema no Screen (flutua acima de tudo)
+
+    -- FIX: dropdown INLINE — filho do Main, aparece sobre o Content mas dentro do Main
+    local themeTotal=#themeNames*26+10
     local themeDD=U.New("Frame",{
-        Size=UDim2.new(0,100,0,0),
-        Position=UDim2.new(0,0,0,0), -- posicionado dinamicamente
-        BackgroundColor3=T.Surface,ClipsDescendants=true,ZIndex=500,
+        Size=UDim2.new(0,110,0,0),
+        -- posição relativa ao Main: sob a titlebar, alinhado ao botão
+        Position=UDim2.new(1,-170,0,TH),
+        BackgroundColor3=T.Surface,ClipsDescendants=true,ZIndex=50,
         Visible=false,
-    },Screen)
+    },Main)
     U.Corner(8,themeDD); U.Stroke(T.Border,1,themeDD)
     local tddL=U.List(2,Enum.HorizontalAlignment.Center,themeDD); U.Pad(3,3,4,4,themeDD)
 
-    local themeTotal=#themeNames*26+6
     for _,tn in ipairs(themeNames) do
         local tb2=U.New("TextButton",{
             Size=UDim2.new(1,0,0,24),BackgroundColor3=T.Surface,
-            Text=tn,TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=10,ZIndex=501,
+            Text=tn,TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=10,ZIndex=51,
         },themeDD)
         U.Corner(6,tb2)
         tb2.MouseEnter:Connect(function() U.Tween(tb2,{BackgroundColor3=T.SurfaceHover},0.1) end)
         tb2.MouseLeave:Connect(function() U.Tween(tb2,{BackgroundColor3=T.Surface},0.1) end)
         tb2.MouseButton1Click:Connect(function()
             themeOpen=false
-            themeDD.Visible=false
+            U.Tween(themeDD,{Size=UDim2.new(0,110,0,0)},0.2)
+            task.delay(0.22,function() themeDD.Visible=false end)
             local newT = SunUI.Themes[tn]
             if themeLbl then themeLbl.Text=tn end
             if newT then
@@ -1783,20 +1801,16 @@ function SunUI:CreateWindow(opts)
     end
 
     local themeTrigger=U.New("TextButton",{
-        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-272,0.5,-13),
+        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-168,0.5,-13),
         BackgroundTransparency=1,Text="",ZIndex=9,
     },TBar)
     themeTrigger.MouseButton1Click:Connect(function()
         themeOpen=not themeOpen
         if themeOpen then
-            -- Posicionar dropdown no screen sob o botão
-            local abs = themeBtnF.AbsolutePosition
-            local sz  = themeBtnF.AbsoluteSize
-            themeDD.Position = UDim2.new(0, abs.X, 0, abs.Y + sz.Y + 4)
-            themeDD.Visible = true
-            U.Tween(themeDD,{Size=UDim2.new(0,100,0,themeTotal)},0.24,Enum.EasingStyle.Quart)
+            themeDD.Visible=true
+            U.Tween(themeDD,{Size=UDim2.new(0,110,0,themeTotal)},0.24,Enum.EasingStyle.Quart)
         else
-            U.Tween(themeDD,{Size=UDim2.new(0,100,0,0)},0.22)
+            U.Tween(themeDD,{Size=UDim2.new(0,110,0,0)},0.22)
             task.delay(0.25,function() themeDD.Visible=false end)
         end
     end)
@@ -1817,7 +1831,8 @@ function SunUI:CreateWindow(opts)
         if tip then U.Tooltip(b,tip) end
         return b
     end
-    CtrlBtn("✕",Color3.fromRGB(220,50,50),-14,function()
+    -- FIX: botões dentro da borda — xOff negativo suficiente
+    CtrlBtn("✕",Color3.fromRGB(220,50,50),-40,function()
         SaveMgr:Save(SunUI.Flags); StopRainbow()
         U.Tween(MainWrap,{Size=UDim2.new(0,W,0,0),BackgroundTransparency=1},0.28)
         if Shadow then U.Tween(Shadow,{ImageTransparency=1},0.22) end
@@ -1828,7 +1843,7 @@ function SunUI:CreateWindow(opts)
             end
         end)
     end,"Fechar (oculta; use a bind para reabrir)")
-    CtrlBtn("─",T.Border,-46,function()
+    CtrlBtn("─",T.Border,-72,function()
         minimized=not minimized
         U.Tween(MainWrap,{Size=minimized and UDim2.new(0,W,0,TH) or UDim2.new(0,W,0,H)},0.28,Enum.EasingStyle.Quart)
     end,"Minimizar")
@@ -2461,7 +2476,7 @@ function SunUI:CreateWindow(opts)
             end
 
             -- ═══ DROPDOWN ════════════════
-            -- FIX: flutua sobre conteúdo, altura máxima, fecha ao clicar fora
+            -- FIX v5.6: INLINE — expande dentro do SWrap, sem flutuar
             function Sec:Dropdown(opts)
                 opts=opts or {}
                 local lbl=tostring(opts.Name or "Dropdown")
@@ -2473,158 +2488,215 @@ function SunUI:CreateWindow(opts)
                 local multiSel=multi and (type(def)=="table" and def or {}) or {}
                 SunUI.Flags[fid]=multi and multiSel or selected
                 local isOpen=false
-                local iH=30
-                -- Altura máxima da lista: máx 6 itens visíveis + search
-                local MAX_LIST_H=220
-                local listH=math.min(#options*(iH+2)+42, MAX_LIST_H)
+                local iH=28
+                local HEADER_H=44
 
-                -- Header (sempre visível, tamanho fixo)
+                -- Container principal — cresce quando aberto
                 local Wrap=U.New("Frame",{
-                    Size=UDim2.new(1,0,0,44),
-                    BackgroundColor3=T.SurfaceHigh,ZIndex=6,
+                    Size=UDim2.new(1,0,0,HEADER_H),
+                    BackgroundColor3=T.SurfaceHigh,ClipsDescendants=false,ZIndex=6,
                 },SWrap)
                 U.Corner(9,Wrap)
-                U.New("TextLabel",{Size=UDim2.new(0.5,0,1,0),Position=UDim2.new(0,10,0,0),BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},Wrap)
-                local selF=U.New("Frame",{Size=UDim2.new(0,120,0,28),Position=UDim2.new(1,-132,0.5,-14),BackgroundColor3=T.Surface,ZIndex=7},Wrap)
+
+                -- Hitbox do header
+                local hitBtn=U.New("TextButton",{
+                    Size=UDim2.new(1,0,0,HEADER_H),
+                    BackgroundTransparency=1,Text="",ZIndex=9,
+                },Wrap)
+
+                -- Label nome
+                U.New("TextLabel",{
+                    Size=UDim2.new(0.5,0,0,HEADER_H),Position=UDim2.new(0,10,0,0),
+                    BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,
+                    Font=Enum.Font.GothamBold,TextSize=12,
+                    TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
+                },Wrap)
+
+                -- Display do selecionado
+                local selF=U.New("Frame",{
+                    Size=UDim2.new(0,128,0,28),Position=UDim2.new(1,-140,0.5,-14),
+                    BackgroundColor3=T.Surface,ZIndex=7,
+                },Wrap)
                 U.Corner(7,selF); U.Stroke(T.Border,1,selF)
-                local selLbl=U.New("TextLabel",{Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,7,0,0),BackgroundTransparency=1,Text=multi and (#multiSel.." sel.") or tostring(selected or "Selecionar"),TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},selF)
-                local arrow=U.New("TextLabel",{Size=UDim2.new(0,14,1,0),Position=UDim2.new(1,-16,0,0),BackgroundTransparency=1,Text="▾",TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8},selF)
+                local selLbl=U.New("TextLabel",{
+                    Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,7,0,0),
+                    BackgroundTransparency=1,
+                    Text=multi and (#multiSel.." sel.") or tostring(selected or "Selecionar"),
+                    TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=10,
+                    TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
+                },selF)
+                local arrow=U.New("TextLabel",{
+                    Size=UDim2.new(0,14,1,0),Position=UDim2.new(1,-16,0,0),
+                    BackgroundTransparency=1,Text="▾",TextColor3=T.TextMuted,
+                    Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8,
+                },selF)
 
-                -- FIX: Lista flutua no Screen, não empurra conteúdo
-                local ListF=U.New("ScrollingFrame",{
-                    Size=UDim2.new(0,0,0,0),
-                    BackgroundColor3=T.Surface,
-                    ScrollBarThickness=3,
-                    ScrollBarImageColor3=T.Scrollbar,
-                    ClipsDescendants=true,
-                    Visible=false,ZIndex=500,
-                    BorderSizePixel=0,
-                },Screen)
-                U.Corner(9,ListF); U.Stroke(T.Border,1.5,ListF)
-                local listLayout=U.List(2,Enum.HorizontalAlignment.Center,ListF)
-                U.Pad(4,4,5,5,ListF)
-                U.AutoCanvas(ListF,listLayout,8)
+                -- Separador
+                local sep=U.New("Frame",{
+                    Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,HEADER_H),
+                    BackgroundColor3=T.Border,ZIndex=7,Visible=false,
+                },Wrap)
 
-                -- search interno
-                local sBg=U.New("Frame",{Size=UDim2.new(1,-10,0,26),BackgroundColor3=T.InputBg,ZIndex=501},ListF)
+                -- Search
+                local sBg=U.New("Frame",{
+                    Size=UDim2.new(1,-20,0,26),Position=UDim2.new(0,10,0,HEADER_H+6),
+                    BackgroundColor3=T.InputBg,ZIndex=7,Visible=false,
+                },Wrap)
                 U.Corner(6,sBg); U.Stroke(T.BorderBright,1,sBg)
-                U.New("TextLabel",{Size=UDim2.new(0,18,1,0),BackgroundTransparency=1,Text="🔍",TextSize=10,ZIndex=502},sBg)
-                local sTB2=U.New("TextBox",{Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,18,0,0),BackgroundTransparency=1,Text="",PlaceholderText="Filtrar...",PlaceholderColor3=T.TextMuted,TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=10,ClearTextOnFocus=false,ZIndex=502},sBg)
+                U.New("TextLabel",{Size=UDim2.new(0,18,1,0),BackgroundTransparency=1,Text="🔍",TextSize=10,ZIndex=8},sBg)
+                local sTB2=U.New("TextBox",{
+                    Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,18,0,0),
+                    BackgroundTransparency=1,Text="",PlaceholderText="Filtrar...",
+                    PlaceholderColor3=T.TextMuted,TextColor3=T.Text,
+                    Font=Enum.Font.Gotham,TextSize=10,ClearTextOnFocus=false,ZIndex=8,
+                },sBg)
 
+                -- Lista de opções (posições absolutas dentro do Wrap)
+                local optListY = HEADER_H + 36
                 local optObjs={}
-                for _,opt in ipairs(options) do
-                    local ob=U.New("TextButton",{Size=UDim2.new(1,-10,0,iH),BackgroundColor3=T.Surface,Text="",ZIndex=501},ListF)
-                    U.Corner(6,ob)
-                    local otxt=U.New("TextLabel",{Size=UDim2.new(1,-36,1,0),Position=UDim2.new(0,8,0,0),BackgroundTransparency=1,Text=tostring(opt),TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=502},ob)
-                    local chk=U.New("Frame",{Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-24,0.5,-8),BackgroundColor3=T.TrackBg,ZIndex=502},ob)
-                    U.Corner(5,chk)
-                    local cm=U.New("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="✓",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=9,Visible=false,ZIndex=503},chk)
-                    local function RefChk()
-                        local on=multi and (table.find(multiSel,opt)~=nil) or (selected==opt)
-                        U.Tween(chk,{BackgroundColor3=on and T.Accent or T.TrackBg},0.15)
-                        pcall(function() cm.Visible=on end)
-                        U.Tween(otxt,{TextColor3=on and T.Text or T.TextSub},0.15)
+
+                local function BuildOptions(opts2)
+                    for _,o in ipairs(optObjs) do
+                        if o.btn and o.btn.Parent then o.btn:Destroy() end
                     end
-                    RefChk(); table.insert(optObjs,{btn=ob,val=opt,ref=RefChk})
-                    ob.MouseEnter:Connect(function() U.Tween(ob,{BackgroundColor3=T.SurfaceHover},0.1) end)
-                    ob.MouseLeave:Connect(function() U.Tween(ob,{BackgroundColor3=T.Surface},0.1) end)
-                    ob.MouseButton1Click:Connect(function()
-                        if multi then
-                            local idx=table.find(multiSel,opt)
-                            if idx then table.remove(multiSel,idx) else table.insert(multiSel,opt) end
-                            SunUI.Flags[fid]=multiSel
-                            if selLbl then selLbl.Text=#multiSel.." sel." end
-                            pcall(cb,multiSel)
-                        else
-                            selected=opt; SunUI.Flags[fid]=opt
-                            if selLbl then selLbl.Text=tostring(opt) end
-                            pcall(cb,opt)
-                            -- Fechar ao selecionar (single)
-                            isOpen=false
-                            ListF.Visible=false
-                            U.Tween(arrow,{Rotation=0},0.2)
-                            -- Remove da lista de abertos
-                            for i,dd in ipairs(SunUI._openDropdowns) do
-                                if dd.listF==ListF then table.remove(SunUI._openDropdowns,i) break end
-                            end
+                    optObjs={}
+                    for i,opt in ipairs(opts2) do
+                        local ob=U.New("TextButton",{
+                            Size=UDim2.new(1,-20,0,iH),
+                            Position=UDim2.new(0,10,0, optListY + (i-1)*(iH+2)),
+                            BackgroundColor3=T.Surface,Text="",ZIndex=7,Visible=false,
+                        },Wrap)
+                        U.Corner(6,ob)
+                        local otxt=U.New("TextLabel",{
+                            Size=UDim2.new(1,-32,1,0),Position=UDim2.new(0,8,0,0),
+                            BackgroundTransparency=1,Text=tostring(opt),
+                            TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=11,
+                            TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
+                        },ob)
+                        local chk=U.New("Frame",{
+                            Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-24,0.5,-8),
+                            BackgroundColor3=T.TrackBg,ZIndex=8,
+                        },ob)
+                        U.Corner(5,chk)
+                        local cm=U.New("TextLabel",{
+                            Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+                            Text="✓",TextColor3=Color3.new(1,1,1),
+                            Font=Enum.Font.GothamBold,TextSize=9,Visible=false,ZIndex=9,
+                        },chk)
+                        local function RefChk()
+                            local on=multi and (table.find(multiSel,opt)~=nil) or (selected==opt)
+                            U.Tween(chk,{BackgroundColor3=on and T.Accent or T.TrackBg},0.15)
+                            pcall(function() cm.Visible=on end)
+                            U.Tween(otxt,{TextColor3=on and T.Text or T.TextSub},0.15)
                         end
-                        for _,o in ipairs(optObjs) do o.ref() end
-                    end)
+                        RefChk()
+                        table.insert(optObjs,{btn=ob,val=opt,ref=RefChk})
+                        ob.MouseEnter:Connect(function() U.Tween(ob,{BackgroundColor3=T.SurfaceHover},0.1) end)
+                        ob.MouseLeave:Connect(function() U.Tween(ob,{BackgroundColor3=T.Surface},0.1) end)
+                        ob.MouseButton1Click:Connect(function()
+                            if multi then
+                                local idx=table.find(multiSel,opt)
+                                if idx then table.remove(multiSel,idx) else table.insert(multiSel,opt) end
+                                SunUI.Flags[fid]=multiSel
+                                if selLbl then selLbl.Text=#multiSel.." sel." end
+                                pcall(cb,multiSel)
+                            else
+                                selected=opt; SunUI.Flags[fid]=opt
+                                if selLbl then selLbl.Text=tostring(opt) end
+                                pcall(cb,opt)
+                                isOpen=false
+                                local closeH=HEADER_H
+                                U.Tween(Wrap,{Size=UDim2.new(1,0,0,closeH)},0.22,Enum.EasingStyle.Quart)
+                                U.Tween(arrow,{Rotation=0},0.2)
+                                if sep then sep.Visible=false end
+                                if sBg then sBg.Visible=false end
+                                for _,o2 in ipairs(optObjs) do
+                                    if o2.btn then o2.btn.Visible=false end
+                                end
+                            end
+                            for _,o in ipairs(optObjs) do o.ref() end
+                        end)
+                    end
                 end
+
+                BuildOptions(options)
 
                 if sTB2 then
                     sTB2:GetPropertyChangedSignal("Text"):Connect(function()
                         local q=sTB2.Text:lower()
                         for _,o in ipairs(optObjs) do
-                            if o.btn and o.btn.Parent then
-                                pcall(function() o.btn.Visible=(q=="" or tostring(o.val):lower():find(q,1,true)) and true or false end)
+                            if o.btn then
+                                pcall(function()
+                                    o.btn.Visible = isOpen and (q=="" or tostring(o.val):lower():find(q,1,true))
+                                end)
                             end
                         end
                     end)
                 end
 
-                local function CloseDD()
-                    isOpen=false
-                    U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,0)},0.2)
-                    U.Tween(arrow,{Rotation=0},0.2)
-                    task.delay(0.22,function()
-                        if ListF then ListF.Visible=false end
-                    end)
-                    for i,dd in ipairs(SunUI._openDropdowns) do
-                        if dd.listF==ListF then table.remove(SunUI._openDropdowns,i) break end
-                    end
+                local function GetOpenH()
+                    return optListY + #options*(iH+2) + 8
                 end
 
-                local hitBtn=U.New("TextButton",{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="",ZIndex=9},Wrap)
-                hitBtn.MouseButton1Click:Connect(function()
-                    -- Fecha outros dropdowns
-                    U.CloseAllDropdowns()
-                    isOpen=not isOpen
-                    if isOpen then
-                        -- Posiciona a lista sob o header
-                        local abs=Wrap.AbsolutePosition
-                        local sz=Wrap.AbsoluteSize
-                        ListF.Size=UDim2.new(0,sz.X,0,0)
-                        ListF.Position=UDim2.new(0,abs.X,0,abs.Y+sz.Y+4)
-                        ListF.Visible=true
-                        U.Tween(ListF,{Size=UDim2.new(0,sz.X,0,listH)},0.24,Enum.EasingStyle.Quart)
-                        U.Tween(arrow,{Rotation=180},0.2)
-                        -- Registra para fechar ao clicar fora
-                        table.insert(SunUI._openDropdowns,{listF=ListF,close=CloseDD})
-                    else
-                        CloseDD()
+                local function OpenDD()
+                    isOpen=true
+                    if sep then sep.Visible=true end
+                    if sBg then sBg.Visible=true end
+                    for _,o in ipairs(optObjs) do
+                        if o.btn then o.btn.Visible=true end
                     end
+                    U.Tween(Wrap,{Size=UDim2.new(1,0,0,GetOpenH())},0.24,Enum.EasingStyle.Quart)
+                    U.Tween(arrow,{Rotation=180},0.2)
+                end
+
+                local function CloseDD()
+                    isOpen=false
+                    U.Tween(Wrap,{Size=UDim2.new(1,0,0,HEADER_H)},0.22,Enum.EasingStyle.Quart)
+                    U.Tween(arrow,{Rotation=0},0.2)
+                    task.delay(0.24,function()
+                        if sep then sep.Visible=false end
+                        if sBg then sBg.Visible=false end
+                        for _,o in ipairs(optObjs) do
+                            if o.btn then o.btn.Visible=false end
+                        end
+                    end)
+                end
+
+                hitBtn.MouseButton1Click:Connect(function()
+                    if isOpen then CloseDD() else OpenDD() end
                 end)
 
                 if tip~="" then U.Tooltip(Wrap,tip) end
-                Wrap.MouseEnter:Connect(function() if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end end)
-                Wrap.MouseLeave:Connect(function() if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15) end end)
-                RS(lbl,Wrap)
+                Wrap.MouseEnter:Connect(function()
+                    if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end
+                end)
+                Wrap.MouseLeave:Connect(function()
+                    U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15)
+                end)
 
+                RS(lbl,Wrap)
                 local Obj={_element=Wrap}
                 function Obj:Set(v)
-                    if multi then multiSel=type(v)=="table" and v or {v}; SunUI.Flags[fid]=multiSel; if selLbl then selLbl.Text=#multiSel.." sel." end
-                    else selected=v; SunUI.Flags[fid]=v; if selLbl then selLbl.Text=tostring(v) end end
-                    for _,o in ipairs(optObjs) do o.ref() end; pcall(cb,SunUI.Flags[fid])
+                    if multi then
+                        multiSel=type(v)=="table" and v or {v}
+                        SunUI.Flags[fid]=multiSel
+                        if selLbl then selLbl.Text=#multiSel.." sel." end
+                    else
+                        selected=v; SunUI.Flags[fid]=v
+                        if selLbl then selLbl.Text=tostring(v) end
+                    end
+                    for _,o in ipairs(optObjs) do o.ref() end
+                    pcall(cb,SunUI.Flags[fid])
                 end
                 function Obj:Get() return SunUI.Flags[fid] end
-                function Obj:Refresh(newList)
-                    options=newList or {}
-                    for _,o in ipairs(optObjs) do if o.btn and o.btn.Parent then o.btn:Destroy() end end
-                    optObjs={}
-                    listH=math.min(#options*(iH+2)+42, MAX_LIST_H)
-                    for _,opt in ipairs(options) do
-                        local ob2=U.New("TextButton",{Size=UDim2.new(1,-10,0,iH),BackgroundColor3=T.Surface,Text="",ZIndex=501},ListF)
-                        U.Corner(6,ob2)
-                        U.New("TextLabel",{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,6,0,0),BackgroundTransparency=1,Text=tostring(opt),TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=11,ZIndex=502},ob2)
-                        ob2.MouseEnter:Connect(function() U.Tween(ob2,{BackgroundColor3=T.SurfaceHover},0.1) end)
-                        ob2.MouseLeave:Connect(function() U.Tween(ob2,{BackgroundColor3=T.Surface},0.1) end)
-                        ob2.MouseButton1Click:Connect(function()
-                            selected=opt; SunUI.Flags[fid]=opt
-                            if selLbl then selLbl.Text=tostring(opt) end
-                            pcall(cb,opt); CloseDD()
-                        end)
-                        table.insert(optObjs,{btn=ob2,val=opt,ref=function()end})
+                function Obj:Refresh(nl)
+                    options=nl or {}
+                    BuildOptions(options)
+                    if isOpen then
+                        Wrap.Size=UDim2.new(1,0,0,GetOpenH())
+                        for _,o in ipairs(optObjs) do
+                            if o.btn then o.btn.Visible=true end
+                        end
                     end
                 end
                 return Obj
