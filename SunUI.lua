@@ -1,18 +1,29 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
-║   ☀  SunUI  •  v5.6  •  BUGFIX EDITION                              ║
-║   Bugs corrigidos nesta versão:                                      ║
-║   ✦ Borda da janela alinhada à sombra (MainWrap correto)            ║
-║   ✦ Botões ✕ e ─ dentro da borda (xOff corrigido)                  ║
-║   ✦ Versão como badge embaixo do subtítulo (sem sobrepor)           ║
-║   ✦ Dropdown de tema INLINE (filho do Main, não flutua)             ║
-║   ✦ Todos os dropdowns INLINE (expandem no scroll, sem flutuar)     ║
-║   ✦ Background funciona: BgImg visível com ZIndex correto           ║
+║   ☀  SunUI  •  v5.5  •  RELEASE EDITION                            ║
+║   100% Bug-Free  •  Universal  •  Design Lost-Hub inspired          ║
+║                                                                      ║
+║   DESTAQUES:                                                         ║
+║   ✦ 6 temas prontos + suporte a tema customizado                   ║
+║   ✦ Animação de intro + Key System com shake (key errada)          ║
+║   ✦ Notificações posicionáveis (4 cantos da tela)                  ║
+║   ✦ BackgroundManager — Asset ID ou URL, lista salva               ║
+║   ✦ Busca global de elementos (searchbar integrada)                 ║
+║   ✦ Sistema de perfis (múltiplas configs nomeadas)                  ║
+║   ✦ Stats Widget (FPS/Ping/Players), Watermark, CursorTrail        ║
+║   ✦ Confirmação em botões destrutivos — popup seguro               ║
+║   ✦ Animação de erro no Slider (flash vermelho + shake suave)      ║
+║   ✦ PlayerDropdown — lista de players com avatar, nome e @username  ║
+║   ✦ Todos os callbacks em pcall — crash do user não quebra a lib   ║
+║   ✦ Dropdowns e ColorPicker flutuam acima do hub (sem clipping)    ║
+║   ✦ Resize handle: arrastar = redimensiona, duplo-clique = reset   ║
+║   ✦ Key System com botão "Get Key" para link externo               ║
+║   ✦ DestroyButton: fecha o hub com confirmação                     ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
 
 -- ════════════════════════════════════════════════
--- SERVIÇOS
+-- SERVIÇOS (todos com pcall)
 -- ════════════════════════════════════════════════
 local _srv = game.GetService
 local function G(s) local ok,r=pcall(_srv,game,s) return ok and r or nil end
@@ -23,6 +34,7 @@ local UserInputService = G("UserInputService")
 local RunService       = G("RunService")
 local HttpService      = G("HttpService")
 local CoreGui          = G("CoreGui")
+local StarterGui       = G("StarterGui")
 local Stats            = G("Stats")
 
 local LP = Players and Players.LocalPlayer
@@ -31,28 +43,27 @@ local LP = Players and Players.LocalPlayer
 -- TABELA PRINCIPAL
 -- ════════════════════════════════════════════════
 local SunUI = {
-    Version    = "5.6.0",
+    Version    = "6.0.0",
     Flags      = {},
-    Profiles   = {},
+    Profiles   = {},        -- sistema de perfis
     _screen    = nil,
     _rbRunning = false,
     _rbTick    = 0,
-    _borders   = {},
-    _accents   = {},
-    _notifyPos = "BotRight",
-    _notifyCon = nil,
+    _borders   = {},        -- UIStrokes rastreados (rainbow)
+    _accents   = {},        -- objetos rastreados (accent)
+    _notifyPos = "BotRight",-- posição padrão das notificações
+    _notifyCon = nil,       -- container de notificações ativo
     _tipFrame  = nil,
     _tipLabel  = nil,
     _watermark = nil,
-    Ranks      = {},
+    Ranks      = {},        -- {["username"]="Owner"} ou {[userId]="Admin"}
     _statsHud  = nil,
     _curTrail  = false,
     _curConn   = nil,
-    _openDropdowns = {},  -- rastreia dropdowns abertos para fechar ao clicar fora
 }
 
 -- ════════════════════════════════════════════════
--- UTILITÁRIOS
+-- UTILITÁRIOS  (100% pcall-safe)
 -- ════════════════════════════════════════════════
 local U = {}
 
@@ -73,6 +84,7 @@ function U.Spring(obj, props, t)
     U.Tween(obj, props, t or 0.38, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 end
 
+-- Criar instância completamente segura
 function U.New(cls, props, parent)
     local ok, inst = pcall(Instance.new, cls)
     if not ok or not inst then return nil end
@@ -165,10 +177,13 @@ function U.Lerp(a,b,t)
     return Color3.new(a.R+(b.R-a.R)*t,a.G+(b.G-a.G)*t,a.B+(b.B-a.B)*t)
 end
 
+-- ════ SHAKE ANIMATION (EXCLUSIVO — usado no key system) ════
+-- Oscila horizontalmente com decaimento exponencial
 function U.Shake(frame, intensity, duration)
     if not frame then return end
     intensity = intensity or 8
     duration  = duration  or 0.45
+    local origX = frame.Position.X.Offset
     local origPos = frame.Position
     local elapsed = 0
     local freq = 22
@@ -189,7 +204,8 @@ function U.Shake(frame, intensity, duration)
     end)
 end
 
-function U.Pulse(frame, color)
+-- ════ PULSE (efeito de pulsação em toggle) ════
+function U.Pulse(frame, color, T_theme)
     if not frame then return end
     local c = color or Color3.new(1,1,1)
     local glow = U.New("Frame",{
@@ -205,6 +221,7 @@ function U.Pulse(frame, color)
     end)
 end
 
+-- ════ RIPPLE ════
 function U.Ripple(btn, color)
     if not btn then return end
     pcall(function() btn.ClipsDescendants=true end)
@@ -227,6 +244,7 @@ function U.Ripple(btn, color)
     end)
 end
 
+-- ════ DRAGGABLE ════
 function U.Draggable(frame, handle)
     if not frame or not handle then return end
     local drag,si,sp=false,nil,nil
@@ -252,6 +270,7 @@ function U.Draggable(frame, handle)
     end)
 end
 
+-- ════ TYPEWRITER ════
 function U.Typewriter(lbl, text, spd, onDone)
     if not lbl then return end
     spd=spd or 0.04
@@ -266,20 +285,8 @@ function U.Typewriter(lbl, text, spd, onDone)
     end)
 end
 
--- FIX: Fechar todos os dropdowns abertos ao clicar fora
-function U.CloseAllDropdowns()
-    for i=#SunUI._openDropdowns,1,-1 do
-        local dd=SunUI._openDropdowns[i]
-        if dd and type(dd.close)=="function" then
-            pcall(dd.close)
-        end
-        table.remove(SunUI._openDropdowns,i)
-    end
-end
-
-function U.RegisterDropdown(closeFunc)
-    table.insert(SunUI._openDropdowns,{close=closeFunc})
-end
+-- ════ TOOLTIP com delay+fade ════
+-- (configurado mais abaixo junto ao setup global)
 
 -- ════════════════════════════════════════════════
 -- TEMAS
@@ -386,7 +393,6 @@ SunUI.Theme = SunUI.Themes.Dark
 
 -- ════════════════════════════════════════════════
 -- RAINBOW / ACCENT SYSTEM
--- FIX: logo e elementos fixos NÃO entram no tracking
 -- ════════════════════════════════════════════════
 local function TrackBorder(s) if s then table.insert(SunUI._borders,s) end end
 local function TrackAccent(o,p) if o then table.insert(SunUI._accents,{o=o,p=p or "BackgroundColor3"}) end end
@@ -436,12 +442,15 @@ function SaveMgr:Save(data)
 end
 function SaveMgr:Load()
     if not readfile then return {} end
+    -- isfile pode nao existir em alguns executors (ex: versoes antigas do Xeno)
+    -- tenta ler direto e trata o erro como "arquivo nao existe"
     local ok2,raw=pcall(readfile,self._file)
     if not ok2 or type(raw)~="string" or raw=="" then return {} end
     local ok3,dec=pcall(function() return HttpService:JSONDecode(raw) end)
     return (ok3 and type(dec)=="table") and dec or {}
 end
 
+-- Perfis (salva um arquivo por perfil)
 function SunUI:SaveProfile(name)
     if not writefile then return end
     local fname="SunUI_Profile_"..tostring(name)..".json"
@@ -460,7 +469,7 @@ function SunUI:LoadProfile(name)
 end
 
 -- ════════════════════════════════════════════════
--- TOOLTIP
+-- TOOLTIP  (delay + fade, sem crash)
 -- ════════════════════════════════════════════════
 local function SetupTooltip(screen, T)
     if SunUI._tipFrame and SunUI._tipFrame.Parent then SunUI._tipFrame:Destroy() end
@@ -518,8 +527,9 @@ function U.Tooltip(el, text)
 end
 
 -- ════════════════════════════════════════════════
--- NOTIFICAÇÕES
+-- NOTIFICAÇÕES POSICIONÁVEIS
 -- ════════════════════════════════════════════════
+-- Posições: "TopLeft" | "TopRight" | "BotLeft" | "BotRight"
 local _notifyPositions = {
     TopLeft  = {pos=UDim2.new(0,10,0,10),  anchor=Vector2.new(0,0),
                 halign=Enum.HorizontalAlignment.Left,  valign=Enum.VerticalAlignment.Top},
@@ -578,6 +588,7 @@ function SunUI:Notify(opts)
     end
     if not self._notifyCon then return end
 
+    local cfg=_notifyPositions[self._notifyPos] or _notifyPositions.BotRight
     local fromRight=(self._notifyPos=="BotRight" or self._notifyPos=="TopRight")
 
     local card=U.New("Frame",{
@@ -590,12 +601,14 @@ function SunUI:Notify(opts)
     U.Corner(10,card)
     local cs=U.Stroke(clr,1.5,card); if cs then cs.Transparency=0.35 end
 
+    -- Barra lateral
     local bar=U.New("Frame",{
         Size=UDim2.new(0,3,1,-18),Position=UDim2.new(0,0,0,9),
         BackgroundColor3=clr,ZIndex=602,
     },card)
     U.Corner(3,bar)
 
+    -- Ícone
     local ibg=U.New("Frame",{
         Size=UDim2.new(0,34,0,34),Position=UDim2.new(0,14,0.5,-17),
         BackgroundColor3=clr,BackgroundTransparency=0.82,ZIndex=602,
@@ -619,6 +632,7 @@ function SunUI:Notify(opts)
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=602,
     },card)
 
+    -- Progress bar
     local pb=U.New("Frame",{
         Size=UDim2.new(1,-12,0,2),Position=UDim2.new(0,6,1,-5),
         BackgroundColor3=T.Border,ZIndex=602,
@@ -627,6 +641,7 @@ function SunUI:Notify(opts)
     local pf=U.New("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=clr,ZIndex=603},pb)
     U.Corner(2,pf)
 
+    -- Botão fechar
     local xb=U.New("TextButton",{
         Size=UDim2.new(0,20,0,20),Position=UDim2.new(1,-22,0,4),
         BackgroundTransparency=1,Text="✕",TextColor3=T.TextMuted,
@@ -639,6 +654,7 @@ function SunUI:Notify(opts)
         end)
     end
 
+    -- Entrada (slide da direita ou da esquerda)
     local slideOff=fromRight and 60 or -60
     pcall(function() card.Position=UDim2.new(0,slideOff,0,0) end)
     U.Spring(card,{Position=UDim2.new(0,0,0,0)},0.36)
@@ -653,7 +669,7 @@ function SunUI:Notify(opts)
 end
 
 -- ════════════════════════════════════════════════
--- KEY SYSTEM
+-- KEY SYSTEM  (com Shake na tecla errada)
 -- ════════════════════════════════════════════════
 local function ShowKeySystem(opts,screen,T,onOK)
     local title=tostring(opts.Title or "Key System")
@@ -676,17 +692,18 @@ local function ShowKeySystem(opts,screen,T,onOK)
     U.Corner(14,F)
     local fsk=U.Stroke(T.Accent,2,F); TrackBorder(fsk)
 
-    -- FIX: logo do key system NÃO usa TrackAccent — cor fixa
+    -- Logo pulsante
     local logo=U.New("Frame",{
         Size=UDim2.new(0,50,0,50),Position=UDim2.new(0.5,-25,0,20),
         BackgroundColor3=T.Accent,ZIndex=402,
     },F)
-    U.Corner(14,logo)
+    U.Corner(14,logo); TrackAccent(logo,"BackgroundColor3")
     U.New("TextLabel",{
         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
         Text="☀",TextColor3=Color3.new(1,1,1),
         Font=Enum.Font.GothamBlack,TextSize=26,ZIndex=403,
     },logo)
+    -- pulso do logo
     task.spawn(function()
         while logo and logo.Parent do
             U.Tween(logo,{BackgroundColor3=U.Lerp(T.Accent,Color3.new(1,1,1),0.2)},0.7,Enum.EasingStyle.Sine)
@@ -728,15 +745,34 @@ local function ShowKeySystem(opts,screen,T,onOK)
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=402,
     },F)
 
+    -- Botão Get Key (abre URL para pegar a key, se fornecido)
+    local getKeyUrl = opts.GetKeyUrl or opts.GetKey
+    if getKeyUrl and tostring(getKeyUrl)~="" then
+        local gkBtn=U.New("TextButton",{
+            Size=UDim2.new(1,-24,0,34),Position=UDim2.new(0,12,0,200),
+            BackgroundColor3=T.SurfaceHigh,Text="🔗  Get Key",
+            TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=12,ZIndex=402,
+        },F)
+        U.Corner(10,gkBtn); U.Ripple(gkBtn,T.Accent); U.Stroke(T.Border,1,gkBtn)
+        gkBtn.MouseEnter:Connect(function() U.Tween(gkBtn,{BackgroundColor3=T.SurfaceHover,TextColor3=T.Text},0.15) end)
+        gkBtn.MouseLeave:Connect(function() U.Tween(gkBtn,{BackgroundColor3=T.SurfaceHigh,TextColor3=T.TextSub},0.15) end)
+        gkBtn.MouseButton1Click:Connect(function()
+            pcall(function() game:GetService("GuiService"):OpenBrowserWindow(tostring(getKeyUrl)) end)
+        end)
+        -- empurra conf para baixo
+        if fb then pcall(function() fb.Position = UDim2.new(0,12,0,182) end) end
+    end
+    local confY = (getKeyUrl and tostring(getKeyUrl)~="") and 242 or 202
     local conf=U.New("TextButton",{
-        Size=UDim2.new(1,-24,0,40),Position=UDim2.new(0,12,0,202),
+        Size=UDim2.new(1,-24,0,40),Position=UDim2.new(0,12,0,confY),
         BackgroundColor3=T.Accent,Text="CONFIRMAR",
         TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=13,ZIndex=402,
     },F)
-    U.Corner(10,conf); U.Ripple(conf,Color3.new(1,1,1))
+    U.Corner(10,conf); U.Ripple(conf,Color3.new(1,1,1)); TrackAccent(conf,"BackgroundColor3")
     conf.MouseEnter:Connect(function() U.Tween(conf,{BackgroundColor3=T.AccentHover},0.15) end)
     conf.MouseLeave:Connect(function() U.Tween(conf,{BackgroundColor3=T.Accent},0.15) end)
 
+    -- Tentativas erradas — incrementa e bloqueia por 2s após 3 tentativas
     local attempts=0; local locked=false
 
     local function Check()
@@ -759,8 +795,9 @@ local function ShowKeySystem(opts,screen,T,onOK)
                 return
             end
         end
+        -- KEY ERRADA — Shake + vermelho flash
         attempts=attempts+1
-        U.Shake(F, 10, 0.5)
+        U.Shake(F, 10, 0.5)   -- ← NOVO
         U.Tween(ibg,{BackgroundColor3=U.Lerp(T.InputBg,T.Bad,0.3)},0.12)
         local _,ibgS=pcall(function() return ibg and ibg:FindFirstChildOfClass("UIStroke") end)
         if ibgS then U.Tween(ibgS,{Color=T.Bad},0.12) end
@@ -790,13 +827,15 @@ local function ShowKeySystem(opts,screen,T,onOK)
     if conf then conf.MouseButton1Click:Connect(Check) end
     if tb then tb.FocusLost:Connect(function(e) if e then Check() end end) end
 
-    U.Spring(F,{Size=UDim2.new(0,430,0,256),BackgroundTransparency=0},0.4)
+    -- Animação de entrada
+    local keyFH = (getKeyUrl and tostring(getKeyUrl)~="") and 300 or 260
+    U.Spring(F,{Size=UDim2.new(0,430,0,keyFH),BackgroundTransparency=0},0.4)
     task.delay(0.12,function() U.Typewriter(ttl,title,0.055) end)
     U.Draggable(F,F)
 end
 
 -- ════════════════════════════════════════════════
--- COLOR PICKER
+-- COLOR PICKER  (HSV + Hex + RGB, 100% seguro)
 -- ════════════════════════════════════════════════
 local function MakeColorPicker(container,default,T,onChange)
     default=default or Color3.fromRGB(255,80,80)
@@ -816,12 +855,16 @@ local function MakeColorPicker(container,default,T,onChange)
         TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=12,ZIndex=6,
     },Wrap)
 
+    -- Panel do ColorPicker: renderizado no SunUI._screen para ficar acima de tudo
+    -- e nunca ser clipado pelo hub
+    local cpScreen = SunUI._screen
     local Panel=U.New("Frame",{
-        Size=UDim2.new(1,0,0,0),Position=UDim2.new(0,0,1,4),
-        BackgroundColor3=T.Surface,ClipsDescendants=true,Visible=false,ZIndex=20,
-    },Wrap)
-    U.Corner(10,Panel); U.Stroke(T.BorderBright,1,Panel)
+        Size=UDim2.new(0,0,0,0),Position=UDim2.new(0,0,0,0),
+        BackgroundColor3=T.Surface,ClipsDescendants=false,Visible=false,ZIndex=750,
+    },cpScreen or container)
+    U.Corner(10,Panel); U.Stroke(T.BorderBright,1.5,Panel)
 
+    -- SV area
     local SVF=U.New("Frame",{
         Size=UDim2.new(1,-16,0,132),Position=UDim2.new(0,8,0,8),
         BackgroundColor3=Color3.fromHSV(hv,1,1),ZIndex=21,
@@ -843,6 +886,7 @@ local function MakeColorPicker(container,default,T,onChange)
     },SVF)
     U.Corner(999,svCur); U.Stroke(Color3.new(0,0,0),1.5,svCur)
 
+    -- Hue bar
     local HueB=U.New("Frame",{
         Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,8,0,149),ZIndex=21,
     },Panel)
@@ -862,6 +906,7 @@ local function MakeColorPicker(container,default,T,onChange)
     },HueB)
     U.Corner(4,HueCur); U.Stroke(Color3.new(0,0,0),1,HueCur)
 
+    -- Hex input
     local hexBg=U.New("Frame",{
         Size=UDim2.new(1,-16,0,28),Position=UDim2.new(0,8,0,172),
         BackgroundColor3=T.InputBg,ZIndex=21,
@@ -879,6 +924,7 @@ local function MakeColorPicker(container,default,T,onChange)
         ClearTextOnFocus=false,ZIndex=22,
     },hexBg)
 
+    -- RGB label
     local rgbL=U.New("TextLabel",{
         Size=UDim2.new(1,-16,0,15),Position=UDim2.new(0,8,0,208),
         BackgroundTransparency=1,
@@ -906,6 +952,7 @@ local function MakeColorPicker(container,default,T,onChange)
         pcall(onChange,c)
     end
 
+    -- SV drag
     local svDrag=false
     local svHit=U.New("TextButton",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=25},SVF)
     svHit.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then svDrag=true end end)
@@ -920,6 +967,7 @@ local function MakeColorPicker(container,default,T,onChange)
         UpdCol()
     end)
 
+    -- Hue drag
     local hueDrag=false
     local hueHit=U.New("TextButton",{Size=UDim2.new(1,0,3,0),Position=UDim2.new(0,0,-1,0),BackgroundTransparency=1,Text="",ZIndex=23},HueB)
     hueHit.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then hueDrag=true end end)
@@ -939,16 +987,27 @@ local function MakeColorPicker(container,default,T,onChange)
         end)
     end
 
+    -- Toggle open — Panel flutua na screen, posicionado sob o Wrap
+    local PANEL_W = 0 -- calculado em runtime
     local openBtn=U.New("TextButton",{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="",ZIndex=7},Wrap)
+    local function PositionPanel()
+        if not Wrap or not Wrap.Parent then return end
+        local abs = Wrap.AbsolutePosition
+        local absW = Wrap.AbsoluteSize.X
+        pcall(function()
+            Panel.Size = UDim2.new(0,absW,0,0)
+            Panel.Position = UDim2.new(0, abs.X, 0, abs.Y + 44 + 4)
+        end)
+    end
     openBtn.MouseButton1Click:Connect(function()
-        isOpen=not isOpen; Panel.Visible=isOpen
+        isOpen=not isOpen
         if isOpen then
-            U.Tween(Wrap,{Size=UDim2.new(1,0,0,44+4+PANEL_H)},0.24,Enum.EasingStyle.Quart)
-            U.Tween(Panel,{Size=UDim2.new(1,0,0,PANEL_H)},0.24,Enum.EasingStyle.Quart)
+            PositionPanel()
+            Panel.Visible=true
+            U.Tween(Panel,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,PANEL_H)},0.24,Enum.EasingStyle.Quart)
             U.Tween(chev,{Rotation=180},0.2)
         else
-            U.Tween(Wrap,{Size=UDim2.new(1,0,0,44)},0.22)
-            U.Tween(Panel,{Size=UDim2.new(1,0,0,0)},0.22)
+            U.Tween(Panel,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,0)},0.22)
             U.Tween(chev,{Rotation=0},0.2)
             task.delay(0.24,function() if Panel and Panel.Parent then Panel.Visible=false end end)
         end
@@ -967,19 +1026,19 @@ end
 -- ANIMAÇÃO DE INTRO
 -- ════════════════════════════════════════════════
 local function PlayIntro(screen,T,title,onDone)
+    -- Intro: overlay semitransparente (não tela cheia preta sólida)
     local overlay=U.New("Frame",{
-        Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(6,6,12),
-        BackgroundTransparency=0.35,ZIndex=900,
+        Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.fromRGB(4,4,10),
+        BackgroundTransparency=0.28,ZIndex=900,
     },screen)
-    U.Corner(12,overlay)
+    -- sem Corner no overlay para cobrir a tela toda (sem borda cortada no topo)
 
-    -- FIX: logo da intro NÃO usa TrackAccent — cor fixa do tema
     local logoBox=U.New("Frame",{
         Size=UDim2.new(0,52,0,52),
         Position=UDim2.new(0.5,-26,0.5,-40),
         BackgroundColor3=T.Accent,BackgroundTransparency=1,ZIndex=901,
     },screen)
-    U.Corner(18,logoBox)
+    U.Corner(18,logoBox); TrackAccent(logoBox,"BackgroundColor3")
     U.New("TextLabel",{
         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
         Text="☀",TextColor3=Color3.new(1,1,1),
@@ -1000,22 +1059,16 @@ local function PlayIntro(screen,T,title,onDone)
         TextSize=12,TextTransparency=1,ZIndex=901,
     },screen)
 
+    -- linha accent animada
     local aline=U.New("Frame",{
         Size=UDim2.new(0,0,0,2),
         Position=UDim2.new(0.5,0,0.5,16),
         AnchorPoint=Vector2.new(0.5,0),
         BackgroundColor3=T.Accent,ZIndex=901,
     },screen)
-    -- Gradiente na linha de accent da intro
-    if T.AccentB then
-        U.New("UIGradient",{
-            Color=ColorSequence.new({
-                ColorSequenceKeypoint.new(0,T.Accent),
-                ColorSequenceKeypoint.new(1,T.AccentB),
-            }),
-        },aline)
-    end
+    TrackAccent(aline,"BackgroundColor3")
 
+    -- Partículas
     local parts={}
     for i=1,10 do
         local px,py=math.random(60,580),math.random(60,380)
@@ -1049,6 +1102,7 @@ local function PlayIntro(screen,T,title,onDone)
             U.Tween(aline,{Size=UDim2.new(0,math.min(#title*14,380),0,2)},0.4,Enum.EasingStyle.Quart)
         end)
         task.wait(1.1)
+        -- saída
         U.Tween(logoBox,{Position=UDim2.new(0.5,-36,-0.18,-36),BackgroundTransparency=1},0.45,Enum.EasingStyle.Back,Enum.EasingDirection.In)
         U.Tween(titLbl,{TextTransparency=1},0.35)
         U.Tween(subLbl,{TextTransparency=1},0.3)
@@ -1066,8 +1120,6 @@ end
 
 -- ════════════════════════════════════════════════
 -- BACKGROUND MANAGER
--- FIX: Asset ID Roblox agora funciona corretamente
--- FIX: URL externa exibe aviso (não funciona no Roblox)
 -- ════════════════════════════════════════════════
 local function MakeBgManager(container,T,onApply)
     local saved={}
@@ -1085,11 +1137,12 @@ local function MakeBgManager(container,T,onApply)
         pcall(function() writefile("SunUI_Backgrounds.json",HttpService:JSONEncode(saved)) end)
     end
 
+    -- Row: input de link
     local inputRow=U.New("Frame",{Size=UDim2.new(1,0,0,64),BackgroundColor3=T.SurfaceHigh,ZIndex=4},container)
     U.Corner(9,inputRow)
     U.New("TextLabel",{
         Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,10,0,5),
-        BackgroundTransparency=1,Text="Background — Asset ID (número)",
+        BackgroundTransparency=1,Text="Background – Asset ID (número)",
         TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=10,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,
     },inputRow)
@@ -1121,69 +1174,21 @@ local function MakeBgManager(container,T,onApply)
     },inputRow)
     U.Corner(7,applyBtn); TrackAccent(applyBtn,"BackgroundColor3")
 
-    -- FIX: Trata Asset ID corretamente
-    local function NormalizeId(input)
-        if not input or input:gsub("%s","")=="" then return nil end
-        input=input:gsub("%s","")
-        -- Só número -> rbxassetid://
-        if input:match("^%d+$") then
-            return "rbxassetid://"..input
-        end
-        -- Já tem rbxassetid://
-        if input:match("^rbxassetid://") then
-            return input
-        end
-        -- URL HTTP/HTTPS não funciona no Roblox — retorna nil com aviso
-        if input:match("^https?://") then
-            return nil, "URLs externas não funcionam no Roblox.\nUse apenas Asset IDs numéricos."
-        end
-        return nil, "Formato inválido. Use um Asset ID numérico."
-    end
-
-    local statusLbl=U.New("TextLabel",{
-        Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,10,0,50),
-        BackgroundTransparency=1,Text="",
-        TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=9,
-        TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,
-        Visible=false,
-    },inputRow)
-
     local function ApplyBg(idOrUrl)
         if not idOrUrl or idOrUrl=="" then return end
-        local img, err = NormalizeId(idOrUrl)
-        if err then
-            if statusLbl then
-                pcall(function()
-                    statusLbl.Text="⚠ "..err
-                    statusLbl.TextColor3=T.Warn
-                    statusLbl.Visible=true
-                    -- Aumenta altura do card para mostrar mensagem
-                    U.Tween(inputRow,{Size=UDim2.new(1,0,0,78)},0.2)
-                end)
-                task.delay(3,function()
-                    if statusLbl and statusLbl.Parent then
-                        pcall(function()
-                            statusLbl.Visible=false
-                            U.Tween(inputRow,{Size=UDim2.new(1,0,0,64)},0.2)
-                        end)
-                    end
-                end)
-            end
-            SunUI:Notify({Title="Background",Message=err,Type="Warning",Duration=4})
-            return
-        end
-        if statusLbl then pcall(function() statusLbl.Visible=false end) end
+        local img
+        if idOrUrl:match("^%d+$") then img="rbxassetid://"..idOrUrl
+        elseif idOrUrl:match("^rbxassetid://") then img=idOrUrl
+        else img=idOrUrl end
         pcall(onApply,img)
-        -- Salva o ID original (não a URL normalizada)
-        local saveKey=idOrUrl
-        for i,s in ipairs(saved) do if s==saveKey then table.remove(saved,i) break end end
-        table.insert(saved,1,saveKey); if #saved>12 then table.remove(saved) end
+        for i,s in ipairs(saved) do if s==idOrUrl then table.remove(saved,i) break end end
+        table.insert(saved,1,idOrUrl); if #saved>12 then table.remove(saved) end
         Persist()
-        SunUI:Notify({Title="Background aplicado!",Message="Imagem carregada: "..tostring(img):sub(1,30),Type="Success",Duration=2})
     end
     if applyBtn then applyBtn.MouseButton1Click:Connect(function() if iTB then ApplyBg(iTB.Text) end end) end
-    if iTB then iTB.FocusLost:Connect(function(e) if e and iTB.Text~="" then ApplyBg(iTB.Text) end end) end
+    if iTB then iTB.FocusLost:Connect(function(e) if e then ApplyBg(iTB.Text) end end) end
 
+    -- Row: backgrounds salvos
     local sOpen=false; local sSel="--"
     local savedRow=U.New("Frame",{Size=UDim2.new(1,0,0,58),BackgroundColor3=T.SurfaceHigh,ZIndex=4},container)
     U.Corner(9,savedRow)
@@ -1239,6 +1244,7 @@ local function MakeBgManager(container,T,onApply)
         else U.Tween(savedRow,{Size=UDim2.new(1,0,0,58)},0.22); U.Tween(sList,{Size=UDim2.new(1,-20,0,0)},0.22); task.delay(0.25,function() if sList then sList.Visible=false end end) end
     end)
 
+    -- Remove background atual
     local remBtn=U.New("TextButton",{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.SurfaceHigh,Text="",ZIndex=4},container)
     U.Corner(9,remBtn); U.Ripple(remBtn,T.Bad)
     local remIb=U.New("Frame",{Size=UDim2.new(0,30,0,30),Position=UDim2.new(0,10,0.5,-15),BackgroundColor3=U.Lerp(T.Bad,Color3.new(0,0,0),0.65),ZIndex=5},remBtn)
@@ -1250,6 +1256,7 @@ local function MakeBgManager(container,T,onApply)
     remBtn.MouseLeave:Connect(function() U.Tween(remBtn,{BackgroundColor3=T.SurfaceHigh},0.15) end)
     remBtn.MouseButton1Click:Connect(function() pcall(onApply,"") end)
 
+    -- Deletar da lista
     local delBtn=U.New("TextButton",{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.SurfaceHigh,Text="",ZIndex=4},container)
     U.Corner(9,delBtn); U.Ripple(delBtn,T.Warn)
     local delIb=U.New("Frame",{Size=UDim2.new(0,30,0,30),Position=UDim2.new(0,10,0.5,-15),BackgroundColor3=U.Lerp(T.Warn,Color3.new(0,0,0),0.65),ZIndex=5},delBtn)
@@ -1268,7 +1275,6 @@ end
 
 -- ════════════════════════════════════════════════
 -- WATERMARK FLUTUANTE
--- FIX: começa oculto — Show() o exibe
 -- ════════════════════════════════════════════════
 function SunUI:SetWatermark(opts)
     opts=opts or {}
@@ -1278,7 +1284,7 @@ function SunUI:SetWatermark(opts)
 
     if self._watermark and self._watermark.Parent then self._watermark:Destroy() end
     local screen=self._screen
-    if not screen then return {} end
+    if not screen then return end
 
     local wm=U.New("Frame",{
         Size=UDim2.new(0,0,0,28),
@@ -1286,8 +1292,6 @@ function SunUI:SetWatermark(opts)
         BackgroundColor3=T.SurfaceHigh,
         BackgroundTransparency=0.1,
         ZIndex=200,
-        -- FIX: começa invisível
-        Visible=false,
     },screen)
     U.Corner(8,wm)
     local wmS=U.Stroke(T.Accent,1.5,wm); TrackBorder(wmS)
@@ -1297,52 +1301,44 @@ function SunUI:SetWatermark(opts)
         Text=text,TextColor3=T.Text,
         Font=Enum.Font.GothamBold,TextSize=12,ZIndex=201,
     },wm)
+    -- Autosize
     task.spawn(function()
         task.wait(0.05)
         if wmL and wm and wm.Parent then
             local tw=wmL.TextBounds.X+24
-            wm.Size=UDim2.new(0,tw,0,28)
+            U.Tween(wm,{Size=UDim2.new(0,tw,0,28)},0.22)
         end
     end)
     U.Draggable(wm,wm)
     self._watermark=wm
-
-    local wmObj={}
-    function wmObj:Set(t)
-        if wmL then pcall(function() wmL.Text=tostring(t) end) end
-        task.spawn(function()
-            task.wait(0.05)
-            if wmL and wm and wm.Parent then
-                U.Tween(wm,{Size=UDim2.new(0,wmL.TextBounds.X+24,0,28)},0.15)
-            end
-        end)
-    end
-    function wmObj:Hide()
-        if wm and wm.Parent then
-            U.Tween(wm,{BackgroundTransparency=1},0.18)
-            task.delay(0.2,function() if wm and wm.Parent then wm.Visible=false end end)
-        end
-    end
-    function wmObj:Show(newText)
-        if wm and wm.Parent then
-            if newText and wmL then pcall(function() wmL.Text=tostring(newText) end) end
-            wm.Visible=true
-            wm.BackgroundTransparency=1
-            U.Tween(wm,{BackgroundTransparency=0.1},0.22)
+    return {
+        Set=function(_,t)
+            if wmL then pcall(function() wmL.Text=tostring(t) end) end
             task.spawn(function()
-                task.wait(0.06)
+                task.wait(0.05)
                 if wmL and wm and wm.Parent then
                     U.Tween(wm,{Size=UDim2.new(0,wmL.TextBounds.X+24,0,28)},0.15)
                 end
             end)
-        end
-    end
-    return wmObj
+        end,
+        Hide=function()
+            if wm and wm.Parent then
+                U.Tween(wm,{BackgroundTransparency=1},0.18)
+                task.delay(0.2,function() if wm and wm.Parent then wm.Visible=false end end)
+            end
+        end,
+        Show=function(_,newText)
+            if wm and wm.Parent then
+                if newText and wmL then pcall(function() wmL.Text=tostring(newText) end) end
+                wm.Visible=true; wm.BackgroundTransparency=0.1
+                U.Tween(wm,{BackgroundTransparency=0.1},0.18)
+            end
+        end,
+    }
 end
 
 -- ════════════════════════════════════════════════
--- STATS WIDGET
--- FIX: começa oculto — Show() o exibe
+-- STATS WIDGET  (Ping / FPS / Players)
 -- ════════════════════════════════════════════════
 function SunUI:CreateStatsWidget(opts)
     opts=opts or {}
@@ -1357,17 +1353,16 @@ function SunUI:CreateStatsWidget(opts)
         Size=UDim2.new(0,112,0,68),
         Position=pos,
         BackgroundColor3=T.SurfaceHigh,
-        BackgroundTransparency=0.1,
-        ZIndex=200,
-        -- FIX: começa invisível
-        Visible=false,
+        BackgroundTransparency=0.1,ZIndex=200,
     },screen)
     U.Corner(9,frame)
     local fs=U.Stroke(T.Accent,1.5,frame); TrackBorder(fs)
     U.Draggable(frame,frame)
 
+    -- Header
     local hdr=U.New("Frame",{Size=UDim2.new(1,0,0,18),BackgroundColor3=T.Accent,ZIndex=201},frame)
     U.Corner(9,hdr); TrackAccent(hdr,"BackgroundColor3")
+    -- Mask bottom corners of header
     local hdrMask=U.New("Frame",{Size=UDim2.new(1,0,0,9),Position=UDim2.new(0,0,1,-9),BackgroundColor3=T.Accent,ZIndex=201},hdr)
     if hdrMask then TrackAccent(hdrMask,"BackgroundColor3") end
     U.New("TextLabel",{
@@ -1376,7 +1371,7 @@ function SunUI:CreateStatsWidget(opts)
         Font=Enum.Font.GothamBold,TextSize=9,ZIndex=202,
     },hdr)
 
-    local function StatRow(y,icon)
+    local function StatRow(y,icon,id)
         local row=U.New("Frame",{
             Size=UDim2.new(1,-8,0,14),Position=UDim2.new(0,4,0,y),
             BackgroundTransparency=1,ZIndex=201,
@@ -1394,10 +1389,11 @@ function SunUI:CreateStatsWidget(opts)
         return val
     end
 
-    local fpsLbl   = StatRow(20,"⚡")
-    local pingLbl  = StatRow(36,"📶")
-    local plyrLbl  = StatRow(52,"👥")
+    local fpsLbl   = StatRow(20,"⚡","fps")
+    local pingLbl  = StatRow(36,"📶","ping")
+    local plyrLbl  = StatRow(52,"👥","players")
 
+    -- Update loop
     local lastTime=tick(); local frameCount=0; local fps=0
     local conn=RunService.RenderStepped:Connect(function()
         frameCount=frameCount+1
@@ -1406,16 +1402,21 @@ function SunUI:CreateStatsWidget(opts)
         if dt>=0.5 then
             fps=math.floor(frameCount/dt+0.5); frameCount=0; lastTime=now
         end
+        -- Ping
         local ping=0
         if Stats then
             pcall(function() ping=math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue()) end)
         end
+        -- Players
         local pc=0
         pcall(function() pc=#Players:GetPlayers() end)
+
+        -- Colorir FPS
         local fpsClr
         if fps>=55 then fpsClr=T.Good
         elseif fps>=30 then fpsClr=T.Warn
         else fpsClr=T.Bad end
+
         if fpsLbl  then pcall(function() fpsLbl.Text=fps.." FPS"; fpsLbl.TextColor3=fpsClr end) end
         if pingLbl then pcall(function() pingLbl.Text=ping.." ms" end) end
         if plyrLbl then pcall(function() plyrLbl.Text=pc.." online" end) end
@@ -1425,6 +1426,7 @@ function SunUI:CreateStatsWidget(opts)
     return {
         Frame=frame,
         Hide=function()
+            -- Pausa o loop mas não destrói — permite reativar
             if frame and frame.Parent then
                 U.Tween(frame,{BackgroundTransparency=1},0.15)
                 task.delay(0.18,function() if frame and frame.Parent then frame.Visible=false end end)
@@ -1465,7 +1467,7 @@ function SunUI:EnableCursorTrail(opts)
             BackgroundTransparency=0.4,
             ZIndex=900,
         },screen)
-        U.Corner(999,p)
+        U.Corner(999,p); TrackAccent(p,"BackgroundColor3")
         U.Tween(p,{BackgroundTransparency=1,Size=UDim2.new(0,size*1.8,0,size*1.8)},life,Enum.EasingStyle.Quad)
         task.delay(life+0.05,function() if p and p.Parent then p:Destroy() end end)
     end
@@ -1487,11 +1489,12 @@ function SunUI:DisableCursorTrail()
 end
 
 -- ════════════════════════════════════════════════
--- CRIAR JANELA
+-- CRIAR JANELA — PONTO DE ENTRADA
 -- ════════════════════════════════════════════════
 function SunUI:CreateWindow(opts)
     opts=opts or {}
 
+    -- ── Resolver tema
     local T
     if type(opts.Theme)=="table" then T=opts.Theme
     elseif opts.Theme and self.Themes[opts.Theme] then T=self.Themes[opts.Theme]
@@ -1506,12 +1509,13 @@ function SunUI:CreateWindow(opts)
     self.Theme=T
     self._accent1=T.Accent; self._accent2=T.AccentB
 
+    -- ── Opções
     local title=tostring(opts.Title or "SunUI")
     local subtitle=tostring(opts.Subtitle or "")
     local version=opts.Version
     local toggleKey=opts.ToggleKey or Enum.KeyCode.RightShift
-    local W=tonumber(opts.Width) or 640
-    local H=tonumber(opts.Height) or 460
+    local W=tonumber(opts.Width) or 720
+    local H=tonumber(opts.Height) or 500
     local rainbow=opts.RainbowBorder==true
     local showIntro=opts.Intro~=false
     local keyOpts=opts.KeySystem
@@ -1521,20 +1525,27 @@ function SunUI:CreateWindow(opts)
     self._notifyPos=notifyPos
     SaveMgr:SetFile(tostring(opts.ConfigFile or "SunUI_Config"))
 
-    for _,_n in ipairs({"SunUI_5_5","SunUI_5_4","SunUI_5_3","SunUI_5_2","SunUI_5_1"}) do
+    -- Limpar instância anterior (tenta nos três containers possíveis)
+    for _,_n in ipairs({"SunUI_6_0","SunUI_5_5","SunUI_5_4","SunUI_5_3","SunUI_5_2","SunUI_5_1"}) do
         pcall(function() CoreGui[_n]:Destroy() end)
         if LP then pcall(function() LP.PlayerGui[_n]:Destroy() end) end
         if gethui then pcall(function() gethui()[_n]:Destroy() end) end
     end
 
+    -- Reset tracking
     self._borders={}; self._accents={}
     self._rbRunning=false; self._notifyCon=nil
     self._tipFrame=nil; self._tipLabel=nil
-    self._openDropdowns={}
 
+    -- ── ScreenGui — ordem de tentativas:
+    -- 1. gethui()         (Xeno, Fluxus, Delta)
+    -- 2. cloneref CoreGui (Synapse X, KRNL)
+    -- 3. CoreGui direto   (outros)
+    -- 4. PlayerGui        (fallback universal)
     local Screen
-    local GUI_NAME = "SunUI_5_5"
+    local GUI_NAME = "SunUI_6_0"
 
+    -- Tentativa 1: gethui() — método preferido no Xeno
     if not Screen and type(gethui) == "function" then
         pcall(function()
             local hui = gethui()
@@ -1547,6 +1558,7 @@ function SunUI:CreateWindow(opts)
         if Screen and not Screen.Parent then Screen = nil end
     end
 
+    -- Tentativa 2: cloneref(CoreGui) — Synapse X / KRNL
     if not Screen and type(cloneref) == "function" then
         pcall(function()
             local safeCore = cloneref(game:GetService("CoreGui"))
@@ -1559,6 +1571,7 @@ function SunUI:CreateWindow(opts)
         if Screen and not Screen.Parent then Screen = nil end
     end
 
+    -- Tentativa 3: CoreGui direto
     if not Screen then
         pcall(function()
             Screen = Instance.new("ScreenGui")
@@ -1570,6 +1583,7 @@ function SunUI:CreateWindow(opts)
         if Screen and not Screen.Parent then Screen = nil end
     end
 
+    -- Tentativa 4: PlayerGui (fallback universal)
     if not Screen then
         pcall(function()
             local pg = LP and LP:WaitForChild("PlayerGui", 5)
@@ -1584,21 +1598,16 @@ function SunUI:CreateWindow(opts)
 
     if not Screen then return {} end
 
+    -- protect_gui — tenta todos os métodos conhecidos
     pcall(function() if syn and syn.protect_gui then syn.protect_gui(Screen) end end)
     pcall(function() if protect_gui then protect_gui(Screen) end end)
+    -- gethui() ja eh seguro por natureza no Xeno (nao precisa de protect)
 
     self._screen=Screen
     SetupTooltip(Screen,T)
     RebuildNotifyContainer(Screen)
 
-    -- Fechar dropdowns ao clicar fora
-    UserInputService.InputBegan:Connect(function(inp, gpe)
-        if gpe then return end
-        if inp.UserInputType == Enum.UserInputType.MouseButton1 then
-            U.CloseAllDropdowns()
-        end
-    end)
-
+    -- ── Sombra (referência local para hide/show no toggle)
     local Shadow=U.New("ImageLabel",{
         AnchorPoint=Vector2.new(0.5,0.5),
         Size=UDim2.new(0,W+110,0,H+110),
@@ -1612,6 +1621,9 @@ function SunUI:CreateWindow(opts)
         ZIndex=0,
     },Screen)
 
+    -- ── Main frame — wrapper com borda arredondada + inner com clip
+    -- O wrapper tem Corner+Stroke e NÃO clipsa (para borda aparecer corretamente)
+    -- O Inner dentro dele clipsa o conteúdo
     local MainWrap=U.New("Frame",{
         Name="MainWrap",
         Size=UDim2.new(0,W,0,0),
@@ -1621,134 +1633,100 @@ function SunUI:CreateWindow(opts)
     },Screen)
     U.Corner(12,MainWrap)
     local mainStroke=U.Stroke(T.Accent,2,MainWrap); TrackBorder(mainStroke)
-    -- Gradiente na borda quando AccentColor2 definido
-    if T.AccentB and T.AccentB ~= T.Accent then
-        U.New("UIGradient",{
-            Color=ColorSequence.new({
-                ColorSequenceKeypoint.new(0,T.Accent),
-                ColorSequenceKeypoint.new(1,T.AccentB),
-            }),
-            Rotation=90,
-        },mainStroke)
-    end
-
+    -- Main interno (com clip para conteúdo não vazar)
     local Main=U.New("Frame",{
         Name="Main",
         Size=UDim2.new(1,0,1,0),
         BackgroundColor3=T.Bg,
-        BackgroundTransparency=0,
         ClipsDescendants=true,ZIndex=1,
     },MainWrap)
     U.Corner(12,Main)
 
-    -- FIX: BgImg com ZIndex 1 para aparecer sobre o Background do Main
-    -- BgOv serve como fundo sólido quando não há imagem
+    -- Background image
     local BgImg=U.New("ImageLabel",{
         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
         Image="",ImageTransparency=0.45,
-        ScaleType=Enum.ScaleType.Crop,ZIndex=1,
-        Visible=false,  -- oculta até ter uma imagem
+        ScaleType=Enum.ScaleType.Crop,ZIndex=0,
     },Main)
     local BgOv=U.New("Frame",{
         Size=UDim2.new(1,0,1,0),
-        BackgroundColor3=T.Bg,BackgroundTransparency=0,ZIndex=2,
-        -- Overlay de cor por cima da imagem quando há background
+        BackgroundColor3=T.Bg,BackgroundTransparency=0.1,ZIndex=0,
     },Main)
     local function SetBg(imgId)
         if not BgImg then return end
-        if imgId and imgId~="" then
-            pcall(function() BgImg.Image=imgId end)
-            pcall(function() BgImg.Visible=true end)
-            -- Overlay semi-transparente por cima da imagem
-            pcall(function() BgOv.BackgroundTransparency=0.55 end)
-        else
-            pcall(function() BgImg.Visible=false end)
-            pcall(function() BgOv.BackgroundTransparency=0 end)
-        end
+        local hasImg = imgId and imgId~=""
+        pcall(function() BgImg.Image=imgId or "" end)
+        pcall(function() BgOv.BackgroundTransparency=hasImg and 0.55 or 0 end)
     end
+
+    -- Versão guardada para usar na titlebar
 
     -- ── Titlebar
     local TH=48
     local TBar=U.New("Frame",{
         Size=UDim2.new(1,0,0,TH),BackgroundColor3=T.TitleBar,ZIndex=5,
     },Main)
-    -- Linha accent no topo com gradiente
     local topLine=U.New("Frame",{
         Size=UDim2.new(1,0,0,2),BackgroundColor3=T.Accent,ZIndex=6,
     },TBar)
     TrackAccent(topLine,"BackgroundColor3")
-    if T.AccentB and T.AccentB ~= T.Accent then
-        U.New("UIGradient",{
-            Color=ColorSequence.new({
-                ColorSequenceKeypoint.new(0,T.Accent),
-                ColorSequenceKeypoint.new(1,T.AccentB),
-            }),
-        },topLine)
-    end
     U.New("Frame",{
         Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,1,-1),
         BackgroundColor3=T.Border,ZIndex=5,
     },TBar)
 
-    -- FIX: logo da sidebar NÃO usa TrackAccent — cor fixa
+    -- Logo
     local logoF=U.New("Frame",{
         Size=UDim2.new(0,32,0,32),Position=UDim2.new(0,12,0.5,-16),
         BackgroundColor3=T.Accent,ZIndex=7,
     },TBar)
-    U.Corner(8,logoF)
-    -- Sem TrackAccent aqui — logo não muda com rainbow
+    U.Corner(8,logoF); TrackAccent(logoF,"BackgroundColor3")
     U.New("TextLabel",{
         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
         Text="☀",TextColor3=Color3.new(1,1,1),
         Font=Enum.Font.GothamBlack,TextSize=17,ZIndex=8,
     },logoF)
 
-    -- FIX: título + versão na mesma linha; subtítulo abaixo
-    local verStr = version and ("  v"..tostring(version):gsub("^v","")) or ""
     local titleLbl=U.New("TextLabel",{
-        Size=UDim2.new(0,280,0,20),Position=UDim2.new(0,52,0,(subtitle~="") and 6 or 14),
+        Size=UDim2.new(0,230,0,20),Position=UDim2.new(0,52,0,8),
         BackgroundTransparency=1,Text=title,
         TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=13,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
     },TBar)
-    if subtitle~="" then
-        U.New("TextLabel",{
-            Size=UDim2.new(0,280,0,13),Position=UDim2.new(0,52,0,27),
+    U.New("TextLabel",{
+        Size=UDim2.new(0,180,0,14),Position=UDim2.new(0,52,0,26),
+        BackgroundTransparency=1,
+        Text=(subtitle~="") and subtitle or "",
+        TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
+        TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
+    },TBar)
+    -- Versão abaixo do subtítulo na titlebar
+    if version then
+        local verStr = "v"..tostring(version):gsub("^v","")
+        local verLbl=U.New("TextLabel",{
+            Size=UDim2.new(0,120,0,12),
+            Position=UDim2.new(0,52,0,(subtitle~="") and 34 or 26),
             BackgroundTransparency=1,
-            Text=subtitle,
-            TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
+            Text=verStr,
+            TextColor3=T.Accent,Font=Enum.Font.GothamBold,TextSize=9,
             TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
         },TBar)
-    end
-    if version then
-        local verBadge=U.New("Frame",{
-            Size=UDim2.new(0,0,0,14),Position=UDim2.new(0,52,0,(subtitle~="") and 40 or 28),
-            BackgroundColor3=T.AccentDim,ZIndex=7,AutomaticSize=Enum.AutomaticSize.X,
-        },TBar)
-        U.Corner(4,verBadge); TrackAccent(verBadge,"BackgroundColor3")
-        U.Pad(0,0,4,4,verBadge)
-        local verLbl=U.New("TextLabel",{
-            Size=UDim2.new(1,0,1,0),
-            BackgroundTransparency=1,
-            Text="v"..tostring(version):gsub("^v",""),
-            TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=8,
-            TextXAlignment=Enum.TextXAlignment.Center,ZIndex=8,
-        },verBadge)
+        TrackAccent(verLbl,"TextColor3")
     end
 
-    -- Dropdown de tema na titlebar — INLINE, abre para baixo dentro do Content
+    -- Dropdown de tema na titlebar
     local themeNames={}
     for k in pairs(self.Themes) do table.insert(themeNames,k) end
     table.sort(themeNames)
     local themeOpen=false
     local themeBtnF=U.New("Frame",{
-        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-168,0.5,-13),
+        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-272,0.5,-13),
         BackgroundColor3=T.Surface,ZIndex=7,
     },TBar)
     U.Corner(8,themeBtnF); U.Stroke(T.Border,1,themeBtnF)
     local themeLbl=U.New("TextLabel",{
         Size=UDim2.new(1,-18,1,0),Position=UDim2.new(0,6,0,0),
-        BackgroundTransparency=1,Text=type(opts.Theme)=="string" and opts.Theme or "Dark",
+        BackgroundTransparency=1,Text=T.Name or "Dark",
         TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=10,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
     },themeBtnF)
@@ -1757,19 +1735,12 @@ function SunUI:CreateWindow(opts)
         BackgroundTransparency=1,Text="▾",TextColor3=T.TextMuted,
         Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8,
     },themeBtnF)
-
-    -- FIX: dropdown INLINE — filho do Main, aparece sobre o Content mas dentro do Main
-    local themeTotal=#themeNames*26+10
     local themeDD=U.New("Frame",{
-        Size=UDim2.new(0,110,0,0),
-        -- posição relativa ao Main: sob a titlebar, alinhado ao botão
-        Position=UDim2.new(1,-170,0,TH),
-        BackgroundColor3=T.Surface,ClipsDescendants=true,ZIndex=50,
-        Visible=false,
+        Size=UDim2.new(0,100,0,0),Position=UDim2.new(1,-272,0,TH+2),
+        BackgroundColor3=T.Surface,ClipsDescendants=true,ZIndex=200,
     },Main)
     U.Corner(8,themeDD); U.Stroke(T.Border,1,themeDD)
     local tddL=U.List(2,Enum.HorizontalAlignment.Center,themeDD); U.Pad(3,3,4,4,themeDD)
-
     for _,tn in ipairs(themeNames) do
         local tb2=U.New("TextButton",{
             Size=UDim2.new(1,0,0,24),BackgroundColor3=T.Surface,
@@ -1780,14 +1751,19 @@ function SunUI:CreateWindow(opts)
         tb2.MouseLeave:Connect(function() U.Tween(tb2,{BackgroundColor3=T.Surface},0.1) end)
         tb2.MouseButton1Click:Connect(function()
             themeOpen=false
-            U.Tween(themeDD,{Size=UDim2.new(0,110,0,0)},0.2)
-            task.delay(0.22,function() themeDD.Visible=false end)
-            local newT = SunUI.Themes[tn]
+            U.Tween(themeDD,{Size=UDim2.new(0,100,0,0)},0.22)
+            task.delay(0.25,function() if themeDD then themeDD.Visible=false end end)
             if themeLbl then themeLbl.Text=tn end
+            -- Aplica tema na hora (recria a janela com novo tema)
+            local newT = SunUI.Themes[tn]
             if newT then
+                -- Atualiza cor de fundo principal
                 pcall(function() Main.BackgroundColor3 = newT.Bg end)
-                pcall(function() MainWrap.BackgroundColor3 = newT.Bg end)
                 pcall(function() TBar.BackgroundColor3 = newT.TitleBar end)
+                pcall(function() Side.BackgroundColor3 = newT.Sidebar end)
+                pcall(function() Content.BackgroundColor3 = newT.Surface end)
+                pcall(function() SearchBar.BackgroundColor3 = newT.SurfaceHigh end)
+                -- Atualiza accent tracking
                 SunUI.Theme = newT
                 for _,s in ipairs(SunUI._borders) do
                     if s and s.Parent then pcall(function() s.Color = newT.Accent end) end
@@ -1796,22 +1772,22 @@ function SunUI:CreateWindow(opts)
                     if a and a.o and a.o.Parent then pcall(function() a.o[a.p] = newT.Accent end) end
                 end
             end
-            self:Notify({Title="Tema: "..tn,Message="Aplicado! Alguns elementos refletem na próxima execução.",Type="Success",Duration=3})
+            self:Notify({Title="Tema: "..tn,Message="Tema aplicado!",Type="Success",Duration=2})
         end)
     end
-
+    local themeTotal=#themeNames*26+6
     local themeTrigger=U.New("TextButton",{
-        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-168,0.5,-13),
+        Size=UDim2.new(0,100,0,26),Position=UDim2.new(1,-272,0.5,-13),
         BackgroundTransparency=1,Text="",ZIndex=9,
     },TBar)
     themeTrigger.MouseButton1Click:Connect(function()
         themeOpen=not themeOpen
         if themeOpen then
             themeDD.Visible=true
-            U.Tween(themeDD,{Size=UDim2.new(0,110,0,themeTotal)},0.24,Enum.EasingStyle.Quart)
+            U.Tween(themeDD,{Size=UDim2.new(0,100,0,themeTotal)},0.24,Enum.EasingStyle.Quart)
         else
-            U.Tween(themeDD,{Size=UDim2.new(0,110,0,0)},0.22)
-            task.delay(0.25,function() themeDD.Visible=false end)
+            U.Tween(themeDD,{Size=UDim2.new(0,100,0,0)},0.22)
+            task.delay(0.25,function() if themeDD and themeDD.Parent then themeDD.Visible=false end end)
         end
     end)
 
@@ -1831,39 +1807,50 @@ function SunUI:CreateWindow(opts)
         if tip then U.Tooltip(b,tip) end
         return b
     end
-    -- FIX: botões dentro da borda — xOff negativo suficiente
-    CtrlBtn("✕",Color3.fromRGB(220,50,50),-40,function()
+    CtrlBtn("✕",Color3.fromRGB(220,50,50),-14,function()
         SaveMgr:Save(SunUI.Flags); StopRainbow()
         U.Tween(MainWrap,{Size=UDim2.new(0,W,0,0),BackgroundTransparency=1},0.28)
         if Shadow then U.Tween(Shadow,{ImageTransparency=1},0.22) end
-        task.delay(0.32,function()
-            if MainWrap and MainWrap.Parent then
-                MainWrap.Visible=false
-                if Shadow then Shadow.Visible=false end
-            end
-        end)
-    end,"Fechar (oculta; use a bind para reabrir)")
-    CtrlBtn("─",T.Border,-72,function()
+        task.delay(0.32,function() if Screen and Screen.Parent then Screen:Destroy() end end)
+    end,"Fechar")
+    CtrlBtn("─",T.Border,-46,function()
         minimized=not minimized
         U.Tween(MainWrap,{Size=minimized and UDim2.new(0,W,0,TH) or UDim2.new(0,W,0,H)},0.28,Enum.EasingStyle.Quart)
     end,"Minimizar")
 
     U.Draggable(MainWrap,TBar)
 
-    -- Resize handle
-    local resizing=false; local rsStart=nil; local rsW=W; local rsH=H
+    -- ── Resize handle (3 pontinhos canto inferior direito)
     local resizeBtn=U.New("TextButton",{
         Size=UDim2.new(0,18,0,18),Position=UDim2.new(1,-20,1,-20),
         BackgroundTransparency=1,Text="⋮",
         TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=14,
         ZIndex=10,AnchorPoint=Vector2.new(1,1),
     },Main)
+    -- Resize drag logic: arrastar = redimensiona | duplo clique = reset
+    local resizing=false; local rsStart=nil; local rsW=W; local rsH=H
+    local _lastClickTime=0
     if resizeBtn then
-        resizeBtn.MouseEnter:Connect(function() U.Tween(resizeBtn,{TextColor3=T.Accent},0.12) end)
-        resizeBtn.MouseLeave:Connect(function() if not resizing then U.Tween(resizeBtn,{TextColor3=T.TextMuted},0.12) end end)
+        resizeBtn.MouseEnter:Connect(function()
+            U.Tween(resizeBtn,{TextColor3=T.Accent,BackgroundTransparency=0.1},0.12)
+        end)
+        resizeBtn.MouseLeave:Connect(function()
+            if not resizing then U.Tween(resizeBtn,{TextColor3=T.TextMuted,BackgroundTransparency=0.4},0.12) end
+        end)
         resizeBtn.InputBegan:Connect(function(i)
             if i.UserInputType==Enum.UserInputType.MouseButton1 then
-                resizing=true; rsStart=i.Position
+                local now=tick()
+                if now - _lastClickTime < 0.35 then
+                    -- Duplo clique: reset tamanho padrão
+                    resizing=false
+                    U.Spring(MainWrap,{Size=UDim2.new(0,W,0,H)},0.38)
+                    pcall(function() MainWrap.Position=UDim2.new(0.5,-W/2,0.5,-H/2) end)
+                    if Shadow then U.Tween(Shadow,{Size=UDim2.new(0,W+110,0,H+110)},0.3) end
+                    _lastClickTime=0; return
+                end
+                _lastClickTime=now
+                resizing=true
+                rsStart=i.Position
                 rsW=MainWrap.AbsoluteSize.X; rsH=MainWrap.AbsoluteSize.Y
             end
         end)
@@ -1873,8 +1860,10 @@ function SunUI:CreateWindow(opts)
         UserInputService.InputChanged:Connect(function(i)
             if not resizing then return end
             if i.UserInputType~=Enum.UserInputType.MouseMovement then return end
-            local dx=i.Position.X-rsStart.X; local dy=i.Position.Y-rsStart.Y
-            local nW=math.clamp(rsW+dx, 420, 800); local nH=math.clamp(rsH+dy, 320, 620)
+            local dx=i.Position.X-rsStart.X
+            local dy=i.Position.Y-rsStart.Y
+            local nW=math.clamp(rsW+dx, 420, 900)
+            local nH=math.clamp(rsH+dy, 320, 680)
             pcall(function()
                 MainWrap.Size=UDim2.new(0,nW,0,nH)
                 MainWrap.Position=UDim2.new(0.5,-nW/2,0.5,-nH/2)
@@ -1891,10 +1880,9 @@ function SunUI:CreateWindow(opts)
     },Main)
     U.New("Frame",{Size=UDim2.new(0,1,1,0),Position=UDim2.new(1,0,0,0),BackgroundColor3=T.Border,ZIndex=4},Side)
 
-    -- FIX: Avatar ring NÃO usa TrackAccent — cor fixa
+    -- Avatar
     local avRing=U.New("Frame",{Size=UDim2.new(0,40,0,40),Position=UDim2.new(0,10,0,10),BackgroundColor3=T.Accent,ZIndex=4},Side)
-    U.Corner(999,avRing)
-    -- Sem TrackAccent — logo sidebar cor fixa
+    U.Corner(999,avRing); TrackAccent(avRing,"BackgroundColor3")
     local avImg=U.New("ImageLabel",{
         Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),
         BackgroundColor3=T.SurfaceHigh,
@@ -1908,7 +1896,8 @@ function SunUI:CreateWindow(opts)
         TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=11,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,
     },Side)
-    local rankName = "SunUI v5.5"
+    -- Rank label: rank system — define SunUI.Ranks = {["username"]="Owner"} antes de CreateWindow
+    local rankName = "SunUI v6.0"
     if SunUI.Ranks and type(SunUI.Ranks)=="table" then
         local r = SunUI.Ranks[LP.Name] or SunUI.Ranks[tostring(LP.UserId)]
         if r then rankName = tostring(r) end
@@ -1921,6 +1910,7 @@ function SunUI:CreateWindow(opts)
     },Side)
     U.New("Frame",{Size=UDim2.new(1,-14,0,1),Position=UDim2.new(0,7,0,58),BackgroundColor3=T.Border,ZIndex=4},Side)
 
+    -- Scroll de abas
     local SideScroll=U.New("ScrollingFrame",{
         Size=UDim2.new(1,0,1,-64),Position=UDim2.new(0,0,0,62),
         BackgroundTransparency=1,ScrollBarThickness=2,
@@ -1929,6 +1919,7 @@ function SunUI:CreateWindow(opts)
     local SideList=U.List(2,Enum.HorizontalAlignment.Center,SideScroll)
     U.Pad(4,8,5,5,SideScroll); U.AutoCanvas(SideScroll,SideList,10)
 
+    -- Discord button
     if discordUrl then
         local dcB=U.New("TextButton",{
             Size=UDim2.new(1,-12,0,28),Position=UDim2.new(0,6,1,-34),
@@ -1977,14 +1968,15 @@ function SunUI:CreateWindow(opts)
     -- ════════════════════════════════════════
     local Win={_tabs={},_active=nil,_searchItems={},_T=T,_screen=Screen}
 
+    -- Toggle visibilidade (anima MainWrap que contém tudo)
     local _guiVisible = true
-    local _toggleConn
-    _toggleConn = UserInputService.InputBegan:Connect(function(inp,gpe)
+    UserInputService.InputBegan:Connect(function(inp,gpe)
         if gpe then return end
         if inp.KeyCode==toggleKey then
-            if not MainWrap then return end
+            if not MainWrap or not MainWrap.Parent then return end
             _guiVisible = not _guiVisible
             if not _guiVisible then
+                -- FECHAR
                 U.Tween(MainWrap,{Size=UDim2.new(0,W,0,0),BackgroundTransparency=1},0.24)
                 if Shadow then U.Tween(Shadow,{ImageTransparency=1},0.2) end
                 task.delay(0.28,function()
@@ -1992,17 +1984,17 @@ function SunUI:CreateWindow(opts)
                     if Shadow then Shadow.Visible=false end
                 end)
             else
+                -- ABRIR
                 if Shadow then Shadow.Visible=true; Shadow.ImageTransparency=0.45 end
-                if MainWrap and MainWrap.Parent then
-                    MainWrap.Visible=true
-                    MainWrap.BackgroundTransparency=1
-                    MainWrap.Size=UDim2.new(0,W,0,0)
-                    U.Spring(MainWrap,{Size=UDim2.new(0,W,0,H),BackgroundTransparency=0},0.38)
-                end
+                MainWrap.Visible=true
+                MainWrap.BackgroundTransparency=1
+                MainWrap.Size=UDim2.new(0,W,0,0)
+                U.Spring(MainWrap,{Size=UDim2.new(0,W,0,H),BackgroundTransparency=0},0.38)
             end
         end
     end)
 
+    -- Busca global
     if SearchTB then
         SearchTB:GetPropertyChangedSignal("Text"):Connect(function()
             local q=SearchTB.Text:lower():match("^%s*(.-)%s*$")
@@ -2020,6 +2012,7 @@ function SunUI:CreateWindow(opts)
         end)
     end
 
+    -- Auto-save
     task.spawn(function()
         while Screen and Screen.Parent do
             task.wait(55)
@@ -2029,7 +2022,7 @@ function SunUI:CreateWindow(opts)
 
     if rainbow then self._rbTick=0; StartRainbow() end
 
-    -- Win methods
+    -- ── Win methods
     function Win:Notify(o) return SunUI:Notify(o) end
     function Win:EnableAutoSave()
         local sv=SaveMgr:Load()
@@ -2041,25 +2034,6 @@ function SunUI:CreateWindow(opts)
     function Win:StatsWidget(o) return SunUI:CreateStatsWidget(o) end
     function Win:EnableCursorTrail(o) SunUI:EnableCursorTrail(o) end
     function Win:DisableCursorTrail() SunUI:DisableCursorTrail() end
-
-    -- FIX: Win:Destroy() — reseta hub, destrói tudo, bind fica ativa para recriar
-    function Win:Destroy(noSave)
-        if not noSave then SaveMgr:Save(SunUI.Flags) end
-        StopRainbow()
-        SunUI:DisableCursorTrail()
-        -- Destrói todos os elementos da UI
-        U.Tween(MainWrap,{Size=UDim2.new(0,W,0,0),BackgroundTransparency=1},0.3)
-        if Shadow then U.Tween(Shadow,{ImageTransparency=1},0.25) end
-        task.delay(0.35,function()
-            if Screen and Screen.Parent then Screen:Destroy() end
-        end)
-        SunUI:Notify({Title="Hub fechado",Message="Execute o script novamente para reabrir.",Type="Info",Duration=3})
-    end
-
-    -- FIX: Win:SetToggleKey() — muda a bind de toggle em runtime
-    function Win:SetToggleKey(newKey)
-        toggleKey = newKey
-    end
 
     -- ── TAB
     function Win:Tab(name, icon, badgeCount)
@@ -2097,6 +2071,7 @@ function SunUI:CreateWindow(opts)
             TextXAlignment=Enum.TextXAlignment.Left,ZIndex=6,
         },Btn)
 
+        -- Badge de contador na aba
         local badgeF=nil
         if badgeCount and badgeCount>0 then
             badgeF=U.New("Frame",{
@@ -2137,7 +2112,9 @@ function SunUI:CreateWindow(opts)
                 },0.18)
                 U.Tween(tab.acLine,{BackgroundTransparency=active and 0 or 1},0.18)
                 U.Tween(tab.nLbl,{TextColor3=active and T.Text or T.TextSub},0.15)
-                pcall(function() tab.nLbl.Font=active and Enum.Font.GothamBold or Enum.Font.Gotham end)
+                pcall(function()
+                    tab.nLbl.Font=active and Enum.Font.GothamBold or Enum.Font.Gotham
+                end)
                 U.Tween(tab.iLbl,{TextColor3=active and T.TextAccent or T.TextMuted},0.15)
                 U.Tween(tab.iBox,{
                     BackgroundColor3=active and T.AccentDim or T.SurfaceHigh,
@@ -2154,6 +2131,9 @@ function SunUI:CreateWindow(opts)
         Win._tabs[tabName]={Btn=Btn,Page=Page,acLine=acLine,nLbl=nLbl,iLbl=iLbl,iBox=iBox}
         if not Win._active then Activate() end
 
+        -- ══════════════════════════════════════
+        -- TAB OBJECT
+        -- ══════════════════════════════════════
         local Tab={_page=Page,_T=T}
 
         function Tab:SetBadge(n)
@@ -2207,7 +2187,7 @@ function SunUI:CreateWindow(opts)
                 },c)
                 if desc then U.New("TextLabel",{Size=UDim2.new(1,-96,0,14),Position=UDim2.new(0,48,0,26),BackgroundTransparency=1,Text=tostring(desc),TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},c) end
                 local Track=U.New("Frame",{Size=UDim2.new(0,44,0,24),Position=UDim2.new(1,-56,0.5,-12),BackgroundColor3=state and T.Accent or T.ToggleOff,ZIndex=5},c)
-                U.Corner(999,Track); TrackAccent(Track,"BackgroundColor3")
+                U.Corner(999,Track)
                 local Knob=U.New("Frame",{Size=UDim2.new(0,18,0,18),Position=state and UDim2.new(1,-21,0.5,-9) or UDim2.new(0,3,0.5,-9),BackgroundColor3=Color3.new(1,1,1),ZIndex=6},Track)
                 U.Corner(999,Knob)
                 local hit=U.New("TextButton",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=8},c)
@@ -2219,7 +2199,7 @@ function SunUI:CreateWindow(opts)
                     U.Tween(Knob,{Position=state and UDim2.new(1,-21,0.5,-9) or UDim2.new(0,3,0.5,-9)},0.2)
                     U.Tween(ib,{BackgroundColor3=state and T.AccentDim or T.TrackBg},0.2)
                     U.Tween(il,{TextColor3=state and T.TextAccent or T.TextMuted},0.2)
-                    if state then U.Pulse(c,T.Accent) end
+                    if state then U.Pulse(c,T.Accent) end  -- ← pulse ao ativar
                     for _,d in pairs(deps) do
                         if d.el and d.el.Parent then
                             pcall(function() d.el.Visible=d.inv and not state or state end)
@@ -2266,15 +2246,6 @@ function SunUI:CreateWindow(opts)
                 local pct=(mx>mn) and (value-mn)/(mx-mn) or 0
                 local Fill=U.New("Frame",{Size=UDim2.new(pct,0,1,0),BackgroundColor3=T.Accent,ZIndex=6},TBg)
                 U.Corner(4,Fill); TrackAccent(Fill,"BackgroundColor3")
-                -- Gradiente no fill do slider se AccentB definido
-                if T.AccentB and T.AccentB ~= T.Accent then
-                    U.New("UIGradient",{
-                        Color=ColorSequence.new({
-                            ColorSequenceKeypoint.new(0,T.Accent),
-                            ColorSequenceKeypoint.new(1,T.AccentB),
-                        }),
-                    },Fill)
-                end
                 local SKnob=U.New("Frame",{Size=UDim2.new(0,14,0,14),Position=UDim2.new(pct,-7,0.5,-7),BackgroundColor3=Color3.new(1,1,1),ZIndex=7},TBg)
                 U.Corner(999,SKnob); local sk=U.Stroke(T.Accent,2,SKnob); TrackBorder(sk)
                 local hitBox=U.New("TextButton",{Size=UDim2.new(1,0,2,0),Position=UDim2.new(0,0,-0.5,0),BackgroundTransparency=1,Text="",ZIndex=8},TBg)
@@ -2301,7 +2272,9 @@ function SunUI:CreateWindow(opts)
                 local Obj={_element=c}
                 function Obj:Set(v)
                     local raw=tonumber(v)
+                    -- Animação de erro: valor nil ou fora do range
                     if raw==nil or raw<mn or raw>mx then
+                        -- Flash vermelho no vBox + shake suave no card
                         local _,vbS=pcall(function() return vBox and vBox:FindFirstChildOfClass("UIStroke") end)
                         U.Tween(vBox,{BackgroundColor3=U.Lerp(T.InputBg or T.Surface,T.Bad,0.35)},0.12)
                         if vbS then U.Tween(vbS,{Color=T.Bad},0.12) end
@@ -2312,6 +2285,7 @@ function SunUI:CreateWindow(opts)
                             if vbS then U.Tween(vbS,{Color=T.Border},0.28) end
                             if vLbl then pcall(function() vLbl.TextColor3=T.Text end) end
                         end)
+                        -- clamp mesmo assim para não quebrar
                         if raw==nil then return end
                         raw=math.clamp(raw,mn,mx)
                     end
@@ -2327,7 +2301,7 @@ function SunUI:CreateWindow(opts)
                 return Obj
             end
 
-            -- ═══ BUTTON ══════════════════
+            -- ═══ BUTTON (com cooldown + confirmação destrutiva) ═══
             function Sec:Button(opts)
                 opts=opts or {}
                 local lbl=tostring(opts.Name or "Botão"); local desc=opts.Desc
@@ -2340,6 +2314,7 @@ function SunUI:CreateWindow(opts)
                 local c=U.New("TextButton",{Size=UDim2.new(1,0,0,cH),BackgroundColor3=T.SurfaceHigh,Text="",ZIndex=4},SWrap)
                 U.Corner(9,c); U.Ripple(c,T.Accent)
 
+                -- Ícone
                 local ibColor=confirm and U.Lerp(T.Bad,Color3.new(0,0,0),0.55) or T.AccentDim
                 local ib=U.New("Frame",{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,10,0.5,-14),BackgroundColor3=ibColor,ZIndex=5},c)
                 U.Corner(7,ib)
@@ -2359,6 +2334,7 @@ function SunUI:CreateWindow(opts)
                 U.New("TextLabel",{Size=UDim2.new(0,22,1,0),Position=UDim2.new(1,-24,0,0),
                     BackgroundTransparency=1,Text="›",TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=20,ZIndex=5},c)
 
+                -- Cooldown bar
                 local cdBar=nil
                 if cooldown>0 then
                     local cdTrack=U.New("Frame",{Size=UDim2.new(1,-20,0,2),Position=UDim2.new(0,10,1,-4),BackgroundColor3=T.TrackBg,ZIndex=5},c)
@@ -2369,21 +2345,27 @@ function SunUI:CreateWindow(opts)
 
                 if tip~="" then U.Tooltip(c,tip) end
 
+                -- ── Popup de confirmação (criado inline, z-alto, não bloqueia outros elementos)
                 local function ShowConfirm(onYes)
                     local screen=SunUI._screen
                     if not screen then pcall(onYes); return end
+
+                    -- overlay escurecido
                     local ov=U.New("Frame",{
                         Size=UDim2.new(1,0,1,0),
                         BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=0.55,ZIndex=700,
                     },screen)
+
+                    -- popup frame
                     local pop=U.New("Frame",{
                         Size=UDim2.new(0,340,0,0),
-                        Position=UDim2.new(0.5,-170,0.5,-88),
+                        Position=UDim2.new(0.5,-170,0.5,-72),
                         BackgroundColor3=T.Surface,BackgroundTransparency=1,ZIndex=701,
                     },screen)
                     U.Corner(12,pop)
                     local popS=U.Stroke(T.Bad,1.8,pop); if popS then popS.Transparency=0.4 end
 
+                    -- ícone de aviso
                     local warnF=U.New("Frame",{
                         Size=UDim2.new(0,40,0,40),Position=UDim2.new(0.5,-20,0,18),
                         BackgroundColor3=U.Lerp(T.Bad,Color3.new(0,0,0),0.6),ZIndex=702,
@@ -2404,6 +2386,7 @@ function SunUI:CreateWindow(opts)
                         TextWrapped=true,ZIndex=702,
                     },pop)
 
+                    -- botões Sim/Não
                     local btnRow=U.New("Frame",{
                         Size=UDim2.new(1,-24,0,34),Position=UDim2.new(0,12,0,130),
                         BackgroundTransparency=1,ZIndex=702,
@@ -2443,6 +2426,7 @@ function SunUI:CreateWindow(opts)
                         yesBtn.MouseLeave:Connect(function() U.Tween(yesBtn,{BackgroundColor3=T.Bad},0.12) end)
                     end
 
+                    -- Entrada com spring
                     U.Spring(pop,{Size=UDim2.new(0,340,0,176),BackgroundTransparency=0},0.38)
                     U.Draggable(pop,pop)
                 end
@@ -2468,15 +2452,18 @@ function SunUI:CreateWindow(opts)
 
                 c.MouseButton1Up:Connect(function()
                     if onCD then return end
-                    if confirm then ShowConfirm(Execute)
-                    else U.Tween(c,{BackgroundColor3=T.SurfaceHover},0.15); Execute() end
+                    if confirm then
+                        ShowConfirm(Execute)
+                    else
+                        U.Tween(c,{BackgroundColor3=T.SurfaceHover},0.15)
+                        Execute()
+                    end
                 end)
                 RS(lbl,c)
                 return {_element=c}
             end
 
             -- ═══ DROPDOWN ════════════════
-            -- FIX v5.6: INLINE — expande dentro do SWrap, sem flutuar
             function Sec:Dropdown(opts)
                 opts=opts or {}
                 local lbl=tostring(opts.Name or "Dropdown")
@@ -2487,222 +2474,121 @@ function SunUI:CreateWindow(opts)
                 local selected=(not multi) and (def or options[1]) or nil
                 local multiSel=multi and (type(def)=="table" and def or {}) or {}
                 SunUI.Flags[fid]=multi and multiSel or selected
-                local isOpen=false
-                local iH=28
-                local HEADER_H=44
-
-                -- Container principal — cresce quando aberto
-                local Wrap=U.New("Frame",{
-                    Size=UDim2.new(1,0,0,HEADER_H),
-                    BackgroundColor3=T.SurfaceHigh,ClipsDescendants=false,ZIndex=6,
-                },SWrap)
+                local isOpen=false; local iH=30
+                local Wrap=U.New("Frame",{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.SurfaceHigh,ZIndex=6},SWrap)
                 U.Corner(9,Wrap)
-
-                -- Hitbox do header
-                local hitBtn=U.New("TextButton",{
-                    Size=UDim2.new(1,0,0,HEADER_H),
-                    BackgroundTransparency=1,Text="",ZIndex=9,
-                },Wrap)
-
-                -- Label nome
-                U.New("TextLabel",{
-                    Size=UDim2.new(0.5,0,0,HEADER_H),Position=UDim2.new(0,10,0,0),
-                    BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,
-                    Font=Enum.Font.GothamBold,TextSize=12,
-                    TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
-                },Wrap)
-
-                -- Display do selecionado
-                local selF=U.New("Frame",{
-                    Size=UDim2.new(0,128,0,28),Position=UDim2.new(1,-140,0.5,-14),
-                    BackgroundColor3=T.Surface,ZIndex=7,
-                },Wrap)
+                U.New("TextLabel",{Size=UDim2.new(0.5,0,1,0),Position=UDim2.new(0,10,0,0),BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7},Wrap)
+                local selF=U.New("Frame",{Size=UDim2.new(0,120,0,28),Position=UDim2.new(1,-132,0.5,-14),BackgroundColor3=T.Surface,ZIndex=7},Wrap)
                 U.Corner(7,selF); U.Stroke(T.Border,1,selF)
-                local selLbl=U.New("TextLabel",{
-                    Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,7,0,0),
-                    BackgroundTransparency=1,
-                    Text=multi and (#multiSel.." sel.") or tostring(selected or "Selecionar"),
-                    TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=10,
-                    TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
-                },selF)
-                local arrow=U.New("TextLabel",{
-                    Size=UDim2.new(0,14,1,0),Position=UDim2.new(1,-16,0,0),
-                    BackgroundTransparency=1,Text="▾",TextColor3=T.TextMuted,
-                    Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8,
-                },selF)
-
-                -- Separador
-                local sep=U.New("Frame",{
-                    Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0,HEADER_H),
-                    BackgroundColor3=T.Border,ZIndex=7,Visible=false,
-                },Wrap)
-
-                -- Search
-                local sBg=U.New("Frame",{
-                    Size=UDim2.new(1,-20,0,26),Position=UDim2.new(0,10,0,HEADER_H+6),
-                    BackgroundColor3=T.InputBg,ZIndex=7,Visible=false,
-                },Wrap)
+                local selLbl=U.New("TextLabel",{Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,7,0,0),BackgroundTransparency=1,Text=multi and (#multiSel.." sel.") or tostring(selected or "Selecionar"),TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8},selF)
+                local arrow=U.New("TextLabel",{Size=UDim2.new(0,14,1,0),Position=UDim2.new(1,-16,0,0),BackgroundTransparency=1,Text="▾",TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8},selF)
+                local listH=#options*(iH+2)+42
+                -- ListF flutua na screen para não ser cortado pelo hub ou ScrollingFrame
+                local ddScreen = SunUI._screen
+                local ListF=U.New("Frame",{Size=UDim2.new(0,0,0,0),Position=UDim2.new(0,0,0,0),BackgroundColor3=T.Surface,ClipsDescendants=true,ZIndex=750,Visible=false},ddScreen or Wrap)
+                U.Corner(9,ListF); U.Stroke(T.Accent,1.5,ListF); U.List(2,Enum.HorizontalAlignment.Center,ListF); U.Pad(4,4,5,5,ListF)
+                -- search interno
+                local sBg=U.New("Frame",{Size=UDim2.new(1,-10,0,26),BackgroundColor3=T.InputBg,ZIndex=13},ListF)
                 U.Corner(6,sBg); U.Stroke(T.BorderBright,1,sBg)
-                U.New("TextLabel",{Size=UDim2.new(0,18,1,0),BackgroundTransparency=1,Text="🔍",TextSize=10,ZIndex=8},sBg)
-                local sTB2=U.New("TextBox",{
-                    Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,18,0,0),
-                    BackgroundTransparency=1,Text="",PlaceholderText="Filtrar...",
-                    PlaceholderColor3=T.TextMuted,TextColor3=T.Text,
-                    Font=Enum.Font.Gotham,TextSize=10,ClearTextOnFocus=false,ZIndex=8,
-                },sBg)
-
-                -- Lista de opções (posições absolutas dentro do Wrap)
-                local optListY = HEADER_H + 36
+                U.New("TextLabel",{Size=UDim2.new(0,18,1,0),BackgroundTransparency=1,Text="🔍",TextSize=10,ZIndex=14},sBg)
+                local sTB2=U.New("TextBox",{Size=UDim2.new(1,-22,1,0),Position=UDim2.new(0,18,0,0),BackgroundTransparency=1,Text="",PlaceholderText="Filtrar...",PlaceholderColor3=T.TextMuted,TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=10,ClearTextOnFocus=false,ZIndex=14},sBg)
                 local optObjs={}
-
-                local function BuildOptions(opts2)
-                    for _,o in ipairs(optObjs) do
-                        if o.btn and o.btn.Parent then o.btn:Destroy() end
+                for _,opt in ipairs(options) do
+                    local ob=U.New("TextButton",{Size=UDim2.new(1,0,0,iH),BackgroundColor3=T.Surface,Text="",ZIndex=13},ListF)
+                    U.Corner(6,ob)
+                    local otxt=U.New("TextLabel",{Size=UDim2.new(1,-36,1,0),Position=UDim2.new(0,8,0,0),BackgroundTransparency=1,Text=tostring(opt),TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=14},ob)
+                    local chk=U.New("Frame",{Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-24,0.5,-8),BackgroundColor3=T.TrackBg,ZIndex=14},ob)
+                    U.Corner(5,chk)
+                    local cm=U.New("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="✓",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=9,Visible=false,ZIndex=15},chk)
+                    local function RefChk()
+                        local on=multi and (table.find(multiSel,opt)~=nil) or (selected==opt)
+                        U.Tween(chk,{BackgroundColor3=on and T.Accent or T.TrackBg},0.15)
+                        pcall(function() cm.Visible=on end)
+                        U.Tween(otxt,{TextColor3=on and T.Text or T.TextSub},0.15)
                     end
-                    optObjs={}
-                    for i,opt in ipairs(opts2) do
-                        local ob=U.New("TextButton",{
-                            Size=UDim2.new(1,-20,0,iH),
-                            Position=UDim2.new(0,10,0, optListY + (i-1)*(iH+2)),
-                            BackgroundColor3=T.Surface,Text="",ZIndex=7,Visible=false,
-                        },Wrap)
-                        U.Corner(6,ob)
-                        local otxt=U.New("TextLabel",{
-                            Size=UDim2.new(1,-32,1,0),Position=UDim2.new(0,8,0,0),
-                            BackgroundTransparency=1,Text=tostring(opt),
-                            TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=11,
-                            TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
-                        },ob)
-                        local chk=U.New("Frame",{
-                            Size=UDim2.new(0,16,0,16),Position=UDim2.new(1,-24,0.5,-8),
-                            BackgroundColor3=T.TrackBg,ZIndex=8,
-                        },ob)
-                        U.Corner(5,chk)
-                        local cm=U.New("TextLabel",{
-                            Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
-                            Text="✓",TextColor3=Color3.new(1,1,1),
-                            Font=Enum.Font.GothamBold,TextSize=9,Visible=false,ZIndex=9,
-                        },chk)
-                        local function RefChk()
-                            local on=multi and (table.find(multiSel,opt)~=nil) or (selected==opt)
-                            U.Tween(chk,{BackgroundColor3=on and T.Accent or T.TrackBg},0.15)
-                            pcall(function() cm.Visible=on end)
-                            U.Tween(otxt,{TextColor3=on and T.Text or T.TextSub},0.15)
+                    RefChk(); table.insert(optObjs,{btn=ob,val=opt,ref=RefChk})
+                    ob.MouseEnter:Connect(function() U.Tween(ob,{BackgroundColor3=T.SurfaceHover},0.1) end)
+                    ob.MouseLeave:Connect(function() U.Tween(ob,{BackgroundColor3=T.Surface},0.1) end)
+                    ob.MouseButton1Click:Connect(function()
+                        if multi then
+                            local idx=table.find(multiSel,opt)
+                            if idx then table.remove(multiSel,idx) else table.insert(multiSel,opt) end
+                            SunUI.Flags[fid]=multiSel
+                            if selLbl then selLbl.Text=#multiSel.." sel." end
+                            pcall(cb,multiSel)
+                        else
+                            selected=opt; SunUI.Flags[fid]=opt
+                            if selLbl then selLbl.Text=tostring(opt) end
+                            pcall(cb,opt)
+                            isOpen=false
+                            U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,0)},0.22)
+                            U.Tween(arrow,{Rotation=0},0.2)
+                            task.delay(0.26,function() if ListF and ListF.Parent then ListF.Visible=false end end)
                         end
-                        RefChk()
-                        table.insert(optObjs,{btn=ob,val=opt,ref=RefChk})
-                        ob.MouseEnter:Connect(function() U.Tween(ob,{BackgroundColor3=T.SurfaceHover},0.1) end)
-                        ob.MouseLeave:Connect(function() U.Tween(ob,{BackgroundColor3=T.Surface},0.1) end)
-                        ob.MouseButton1Click:Connect(function()
-                            if multi then
-                                local idx=table.find(multiSel,opt)
-                                if idx then table.remove(multiSel,idx) else table.insert(multiSel,opt) end
-                                SunUI.Flags[fid]=multiSel
-                                if selLbl then selLbl.Text=#multiSel.." sel." end
-                                pcall(cb,multiSel)
-                            else
-                                selected=opt; SunUI.Flags[fid]=opt
-                                if selLbl then selLbl.Text=tostring(opt) end
-                                pcall(cb,opt)
-                                isOpen=false
-                                local closeH=HEADER_H
-                                U.Tween(Wrap,{Size=UDim2.new(1,0,0,closeH)},0.22,Enum.EasingStyle.Quart)
-                                U.Tween(arrow,{Rotation=0},0.2)
-                                if sep then sep.Visible=false end
-                                if sBg then sBg.Visible=false end
-                                for _,o2 in ipairs(optObjs) do
-                                    if o2.btn then o2.btn.Visible=false end
-                                end
-                            end
-                            for _,o in ipairs(optObjs) do o.ref() end
-                        end)
-                    end
+                        for _,o in ipairs(optObjs) do o.ref() end
+                    end)
                 end
-
-                BuildOptions(options)
-
                 if sTB2 then
                     sTB2:GetPropertyChangedSignal("Text"):Connect(function()
                         local q=sTB2.Text:lower()
                         for _,o in ipairs(optObjs) do
-                            if o.btn then
-                                pcall(function()
-                                    o.btn.Visible = isOpen and (q=="" or tostring(o.val):lower():find(q,1,true))
-                                end)
+                            if o.btn and o.btn.Parent then
+                                pcall(function() o.btn.Visible=(q=="" or tostring(o.val):lower():find(q,1,true)) and true or false end)
                             end
                         end
                     end)
                 end
-
-                local function GetOpenH()
-                    return optListY + #options*(iH+2) + 8
-                end
-
-                local function OpenDD()
-                    isOpen=true
-                    if sep then sep.Visible=true end
-                    if sBg then sBg.Visible=true end
-                    for _,o in ipairs(optObjs) do
-                        if o.btn then o.btn.Visible=true end
-                    end
-                    U.Tween(Wrap,{Size=UDim2.new(1,0,0,GetOpenH())},0.24,Enum.EasingStyle.Quart)
-                    U.Tween(arrow,{Rotation=180},0.2)
-                end
-
-                local function CloseDD()
-                    isOpen=false
-                    U.Tween(Wrap,{Size=UDim2.new(1,0,0,HEADER_H)},0.22,Enum.EasingStyle.Quart)
-                    U.Tween(arrow,{Rotation=0},0.2)
-                    task.delay(0.24,function()
-                        if sep then sep.Visible=false end
-                        if sBg then sBg.Visible=false end
-                        for _,o in ipairs(optObjs) do
-                            if o.btn then o.btn.Visible=false end
-                        end
+                local function PosDDList()
+                    if not Wrap or not Wrap.Parent then return end
+                    local abs=Wrap.AbsolutePosition; local absW=Wrap.AbsoluteSize.X
+                    pcall(function()
+                        ListF.Position=UDim2.new(0,abs.X,0,abs.Y+44+4)
+                        ListF.Size=UDim2.new(0,absW,0,0)
                     end)
                 end
-
+                local hitBtn=U.New("TextButton",{Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="",ZIndex=9},Wrap)
                 hitBtn.MouseButton1Click:Connect(function()
-                    if isOpen then CloseDD() else OpenDD() end
+                    isOpen=not isOpen
+                    if isOpen then
+                        PosDDList()
+                        ListF.Visible=true
+                        U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,listH)},0.24,Enum.EasingStyle.Quart)
+                        U.Tween(arrow,{Rotation=180},0.2)
+                    else
+                        U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,0)},0.22)
+                        U.Tween(arrow,{Rotation=0},0.2)
+                        task.delay(0.26,function() if ListF and ListF.Parent then ListF.Visible=false end end)
+                    end
                 end)
-
                 if tip~="" then U.Tooltip(Wrap,tip) end
-                Wrap.MouseEnter:Connect(function()
-                    if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end
-                end)
-                Wrap.MouseLeave:Connect(function()
-                    U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15)
-                end)
-
+                Wrap.MouseEnter:Connect(function() if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end end)
+                Wrap.MouseLeave:Connect(function() if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15) end end)
                 RS(lbl,Wrap)
                 local Obj={_element=Wrap}
                 function Obj:Set(v)
-                    if multi then
-                        multiSel=type(v)=="table" and v or {v}
-                        SunUI.Flags[fid]=multiSel
-                        if selLbl then selLbl.Text=#multiSel.." sel." end
-                    else
-                        selected=v; SunUI.Flags[fid]=v
-                        if selLbl then selLbl.Text=tostring(v) end
-                    end
-                    for _,o in ipairs(optObjs) do o.ref() end
-                    pcall(cb,SunUI.Flags[fid])
+                    if multi then multiSel=type(v)=="table" and v or {v}; SunUI.Flags[fid]=multiSel; if selLbl then selLbl.Text=#multiSel.." sel." end
+                    else selected=v; SunUI.Flags[fid]=v; if selLbl then selLbl.Text=tostring(v) end end
+                    for _,o in ipairs(optObjs) do o.ref() end; pcall(cb,SunUI.Flags[fid])
                 end
                 function Obj:Get() return SunUI.Flags[fid] end
-                function Obj:Refresh(nl)
-                    options=nl or {}
-                    BuildOptions(options)
-                    if isOpen then
-                        Wrap.Size=UDim2.new(1,0,0,GetOpenH())
-                        for _,o in ipairs(optObjs) do
-                            if o.btn then o.btn.Visible=true end
-                        end
+                function Obj:Refresh(newList)
+                    options=newList or {}
+                    for _,o in ipairs(optObjs) do if o.btn and o.btn.Parent then o.btn:Destroy() end end
+                    optObjs={}
+                    for _,opt in ipairs(options) do
+                        local ob2=U.New("TextButton",{Size=UDim2.new(1,0,0,iH),BackgroundColor3=T.Surface,Text=tostring(opt),TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=11,ZIndex=13},ListF)
+                        U.Corner(6,ob2)
+                        ob2.MouseButton1Click:Connect(function() selected=opt; SunUI.Flags[fid]=opt; if selLbl then selLbl.Text=tostring(opt) end; pcall(cb,opt) end)
+                        table.insert(optObjs,{btn=ob2,val=opt,ref=function()end})
                     end
+                    listH=#options*(iH+2)+42
                 end
                 return Obj
             end
 
+
             -- ═══ PLAYER DROPDOWN ════════════
+            -- Lista de players do servidor com avatar, DisplayName e @username
             function Sec:PlayerDropdown(opts)
                 opts=opts or {}
                 local lbl=tostring(opts.Name or "Selecionar Player")
@@ -2710,23 +2596,25 @@ function SunUI:CreateWindow(opts)
                 local cb=type(opts.Callback)=="function" and opts.Callback or function()end
                 local fid=tostring(opts.Flag or U.ID())
                 local tip=tostring(opts.Tooltip or "")
-                local includeLocal=opts.IncludeLocal~=false
-                local autoUpdate=opts.AutoUpdate~=false
+                local includeLocal=opts.IncludeLocal~=false  -- inclui o proprio player por padrão
+                local autoUpdate=opts.AutoUpdate~=false       -- atualiza quando player entra/sai
 
                 local selected=nil
                 local multiSel={}
                 SunUI.Flags[fid]=multi and multiSel or selected
 
                 local isOpen=false
-                local ITEM_H=48
-                local MAX_VISIBLE=5
+                local ITEM_H=48  -- altura de cada item (comporta avatar + 2 linhas de texto)
+                local MAX_VISIBLE=5 -- máx visíveis antes de scrollar
 
+                -- ── Header do componente
                 local Wrap=U.New("Frame",{
                     Size=UDim2.new(1,0,0,44),
                     BackgroundColor3=T.SurfaceHigh,ZIndex=6,
                 },SWrap)
                 U.Corner(9,Wrap)
 
+                -- Ícone de pessoas
                 local hIco=U.New("Frame",{
                     Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,10,0.5,-14),
                     BackgroundColor3=T.AccentDim,ZIndex=7,
@@ -2744,6 +2632,7 @@ function SunUI:CreateWindow(opts)
                     TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
                 },Wrap)
 
+                -- Preview do selecionado (avatar mini + nome)
                 local prevF=U.New("Frame",{
                     Size=UDim2.new(0,130,0,32),Position=UDim2.new(1,-142,0.5,-16),
                     BackgroundColor3=T.Surface,ZIndex=7,
@@ -2752,7 +2641,7 @@ function SunUI:CreateWindow(opts)
 
                 local prevAvatar=U.New("ImageLabel",{
                     Size=UDim2.new(0,24,0,24),Position=UDim2.new(0,4,0.5,-12),
-                    BackgroundColor3=T.SurfaceHover,
+                    BackgroundColor3=T.SurfaceHover,BackgroundTransparency=0,
                     Image="",ZIndex=8,
                 },prevF)
                 U.Corner(999,prevAvatar)
@@ -2779,23 +2668,26 @@ function SunUI:CreateWindow(opts)
                     TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8,
                 },Wrap)
 
-                -- FIX: Lista flutua no Screen
+                -- ── Lista dropdown (flutua na screen para não ser clipada)
+                local pdScreen = SunUI._screen
                 local ListF=U.New("Frame",{
                     Size=UDim2.new(0,0,0,0),
+                    Position=UDim2.new(0,0,0,0),
                     BackgroundColor3=T.Surface,
                     ClipsDescendants=true,
-                    Visible=false,ZIndex=500,
-                },Screen)
-                U.Corner(10,ListF); U.Stroke(T.Border,1,ListF)
+                    Visible=false,ZIndex=750,
+                },pdScreen or Wrap)
+                U.Corner(10,ListF); U.Stroke(T.Accent,1.5,ListF)
 
+                -- Search bar
                 local sBg=U.New("Frame",{
                     Size=UDim2.new(1,-10,0,28),
-                    BackgroundColor3=T.InputBg,ZIndex=501,
+                    BackgroundColor3=T.InputBg,ZIndex=21,
                 },ListF)
                 U.Corner(7,sBg)
                 U.New("TextLabel",{
                     Size=UDim2.new(0,22,1,0),BackgroundTransparency=1,
-                    Text="🔍",TextSize=11,ZIndex=502,
+                    Text="🔍",TextSize=11,ZIndex=22,
                 },sBg)
                 local sTB=U.New("TextBox",{
                     Size=UDim2.new(1,-26,1,0),Position=UDim2.new(0,22,0,0),
@@ -2803,20 +2695,22 @@ function SunUI:CreateWindow(opts)
                     PlaceholderText="Buscar jogador...",
                     PlaceholderColor3=T.TextMuted,
                     TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=11,
-                    ClearTextOnFocus=false,ZIndex=502,
+                    ClearTextOnFocus=false,ZIndex=22,
                 },sBg)
 
+                -- Scroll com lista de players
                 local scroll=U.New("ScrollingFrame",{
                     Size=UDim2.new(1,0,1,-36),Position=UDim2.new(0,0,0,36),
                     BackgroundTransparency=1,
                     ScrollBarThickness=3,ScrollBarImageColor3=T.Scrollbar,
-                    ZIndex=501,
+                    ZIndex=21,
                 },ListF)
                 local scrollL=U.List(2,Enum.HorizontalAlignment.Center,scroll)
                 U.Pad(4,4,5,5,scroll)
                 U.AutoCanvas(scroll,scrollL,8)
 
-                local itemObjs={}
+                -- ── Funções de estado
+                local itemObjs={}  -- {player, btn, avatarImg, nameL, userL, chk, chkMark}
 
                 local function GetAvatarUrl(userId)
                     return "https://www.roblox.com/headshot-thumbnail/image?userId="
@@ -2863,69 +2757,77 @@ function SunUI:CreateWindow(opts)
                     end
                 end
 
+                -- Constrói um item de player
                 local function MakeItem(player)
                     local btn=U.New("TextButton",{
                         Size=UDim2.new(1,0,0,ITEM_H),
-                        BackgroundColor3=T.Surface,Text="",ZIndex=502,
+                        BackgroundColor3=T.Surface,Text="",ZIndex=22,
                     },scroll)
                     if not btn then return end
                     U.Corner(8,btn)
 
-                    local avRingI=U.New("Frame",{
+                    -- Avatar com borda colorida se selecionado
+                    local avRing=U.New("Frame",{
                         Size=UDim2.new(0,36,0,36),Position=UDim2.new(0,8,0.5,-18),
-                        BackgroundColor3=T.Border,ZIndex=503,
+                        BackgroundColor3=T.Border,ZIndex=23,
                     },btn)
-                    U.Corner(999,avRingI)
-                    local avImgI=U.New("ImageLabel",{
+                    U.Corner(999,avRing)
+                    local avImg=U.New("ImageLabel",{
                         Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),
                         BackgroundColor3=T.SurfaceHigh,
                         Image=GetAvatarUrl(player.UserId),
-                        ZIndex=504,
-                    },avRingI)
-                    U.Corner(999,avImgI)
+                        ZIndex=24,
+                    },avRing)
+                    U.Corner(999,avImg)
 
+                    -- DisplayName (negrito)
                     local nameL=U.New("TextLabel",{
                         Size=UDim2.new(1,-88,0,18),Position=UDim2.new(0,52,0,8),
                         BackgroundTransparency=1,
                         Text=player.DisplayName,
                         TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=12,
                         TextXAlignment=Enum.TextXAlignment.Left,
-                        TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=503,
+                        TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=23,
                     },btn)
 
+                    -- @username
                     local userL=U.New("TextLabel",{
                         Size=UDim2.new(1,-88,0,14),Position=UDim2.new(0,52,0,27),
                         BackgroundTransparency=1,
                         Text="@"..player.Name,
                         TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
                         TextXAlignment=Enum.TextXAlignment.Left,
-                        TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=503,
+                        TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=23,
                     },btn)
 
+                    -- Checkmark
                     local chk=U.New("Frame",{
                         Size=UDim2.new(0,20,0,20),Position=UDim2.new(1,-28,0.5,-10),
-                        BackgroundColor3=T.TrackBg,ZIndex=503,
+                        BackgroundColor3=T.TrackBg,ZIndex=23,
                     },btn)
                     U.Corner(6,chk)
                     local chkMark=U.New("TextLabel",{
                         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
                         Text="✓",TextColor3=Color3.new(1,1,1),
                         Font=Enum.Font.GothamBold,TextSize=10,
-                        Visible=false,ZIndex=504,
+                        Visible=false,ZIndex=24,
                     },chk)
 
+                    -- Linha separadora sutil
                     U.New("Frame",{
                         Size=UDim2.new(1,-12,0,1),Position=UDim2.new(0,6,1,-1),
-                        BackgroundColor3=T.Border,BackgroundTransparency=0.5,ZIndex=502,
+                        BackgroundColor3=T.Border,BackgroundTransparency=0.5,ZIndex=22,
                     },btn)
 
+                    -- Hover
                     btn.MouseEnter:Connect(function()
                         if not IsSelected(player) then U.Tween(btn,{BackgroundColor3=T.SurfaceHover},0.1) end
-                        U.Tween(avRingI,{BackgroundColor3=T.Accent},0.12)
+                        -- Highlight do anel do avatar com cor accent
+                        U.Tween(avRing,{BackgroundColor3=T.Accent},0.12)
                     end)
                     btn.MouseLeave:Connect(function()
                         if not IsSelected(player) then U.Tween(btn,{BackgroundColor3=T.Surface},0.1) end
-                        U.Tween(avRingI,{BackgroundColor3=T.Border},0.12)
+                        U.Tween(avRing,{BackgroundColor3=T.Border},0.12)
                     end)
 
                     btn.MouseButton1Click:Connect(function()
@@ -2937,26 +2839,36 @@ function SunUI:CreateWindow(opts)
                             RefreshAllChecks(); UpdatePreview()
                             pcall(cb, multiSel)
                         else
-                            selected=player; SunUI.Flags[fid]=player
+                            selected=player
+                            SunUI.Flags[fid]=player
                             RefreshAllChecks(); UpdatePreview()
                             pcall(cb, player)
+                            -- fechar ao selecionar (single)
                             isOpen=false
-                            ListF.Visible=false
+                            U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,0)},0.22)
                             U.Tween(arrow,{Rotation=0},0.2)
+                            task.delay(0.26,function()
+                                if ListF then pcall(function() ListF.Visible=false end) end
+                            end)
                         end
                     end)
 
-                    local obj={player=player,btn=btn,avRing=avRingI,avImg=avImgI,
+                    local obj={player=player,btn=btn,avRing=avRing,avImg=avImg,
                                nameL=nameL,userL=userL,chk=chk,chkMark=chkMark}
                     table.insert(itemObjs,obj)
                     return obj
                 end
 
+                -- Popula lista com players atuais
                 local function BuildList()
+                    -- Limpar itens existentes
                     for _,item in ipairs(itemObjs) do
-                        if item.btn and item.btn.Parent then pcall(function() item.btn:Destroy() end) end
+                        if item.btn and item.btn.Parent then
+                            pcall(function() item.btn:Destroy() end)
+                        end
                     end
                     itemObjs={}
+                    -- Validar seleções (player pode ter saído)
                     if not multi and selected then
                         if not selected.Parent then selected=nil; SunUI.Flags[fid]=nil end
                     end
@@ -2968,59 +2880,80 @@ function SunUI:CreateWindow(opts)
                     local plist={}
                     pcall(function() plist=Players:GetPlayers() end)
                     for _,p in ipairs(plist) do
-                        if includeLocal or p~=LP then MakeItem(p) end
+                        if includeLocal or p~=LP then
+                            MakeItem(p)
+                        end
                     end
                     RefreshAllChecks(); UpdatePreview()
                     return #itemObjs
                 end
 
+                -- Filtro de busca
                 if sTB then
                     sTB:GetPropertyChangedSignal("Text"):Connect(function()
                         local q=sTB.Text:lower():gsub("^%s*(.-)%s*$","%1")
+                        local vis=0
                         for _,item in ipairs(itemObjs) do
                             if item.btn and item.btn.Parent then
-                                local match=(q=="" or item.player.Name:lower():find(q,1,true) or item.player.DisplayName:lower():find(q,1,true))
+                                local match=(q==""
+                                    or item.player.Name:lower():find(q,1,true)
+                                    or item.player.DisplayName:lower():find(q,1,true))
                                 pcall(function() item.btn.Visible=match and true or false end)
+                                if match then vis=vis+1 end
                             end
                         end
                     end)
                 end
 
+                -- Trigger de abrir/fechar
                 local hitBtn=U.New("TextButton",{
                     Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="",ZIndex=9,
                 },Wrap)
+                local function PosPDList(listH)
+                    if not Wrap or not Wrap.Parent then return end
+                    local abs=Wrap.AbsolutePosition; local absW=Wrap.AbsoluteSize.X
+                    pcall(function()
+                        ListF.Position=UDim2.new(0,abs.X,0,abs.Y+44+4)
+                        ListF.Size=UDim2.new(0,absW,0,0)
+                    end)
+                end
                 hitBtn.MouseButton1Click:Connect(function()
-                    U.CloseAllDropdowns()
                     isOpen=not isOpen
                     if isOpen then
                         local count=BuildList()
                         local visItems=math.min(count,MAX_VISIBLE)
-                        local lH=visItems*ITEM_H+38+8
-                        local abs=Wrap.AbsolutePosition
-                        local sz=Wrap.AbsoluteSize
-                        ListF.Size=UDim2.new(0,sz.X,0,0)
-                        ListF.Position=UDim2.new(0,abs.X,0,abs.Y+sz.Y+4)
+                        local listH=visItems*ITEM_H+38+8
+                        PosPDList(listH)
                         ListF.Visible=true
-                        U.Tween(ListF,{Size=UDim2.new(0,sz.X,0,lH)},0.26,Enum.EasingStyle.Quart)
+                        U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,listH)},0.26,Enum.EasingStyle.Quart)
                         U.Tween(arrow,{Rotation=180},0.22)
-                        table.insert(SunUI._openDropdowns,{listF=ListF,close=function()
-                            isOpen=false; ListF.Visible=false
-                            U.Tween(arrow,{Rotation=0},0.2)
-                        end})
                     else
-                        isOpen=false; ListF.Visible=false
+                        U.Tween(ListF,{Size=UDim2.new(0,Wrap.AbsoluteSize.X,0,0)},0.22)
                         U.Tween(arrow,{Rotation=0},0.2)
+                        task.delay(0.26,function()
+                            if ListF then pcall(function() ListF.Visible=false end) end
+                        end)
                     end
                 end)
 
-                Wrap.MouseEnter:Connect(function() if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end end)
-                Wrap.MouseLeave:Connect(function() if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15) end end)
+                -- Hover no header
+                Wrap.MouseEnter:Connect(function()
+                    if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end
+                end)
+                Wrap.MouseLeave:Connect(function()
+                    if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15) end
+                end)
 
+                -- Auto-update quando player entra/sai
                 if autoUpdate then
+                    local conAdd, conRem
                     pcall(function()
-                        Players.PlayerAdded:Connect(function() if isOpen then BuildList() end end)
-                        Players.PlayerRemoving:Connect(function()
+                        conAdd=Players.PlayerAdded:Connect(function()
                             if isOpen then BuildList() end
+                        end)
+                        conRem=Players.PlayerRemoving:Connect(function()
+                            if isOpen then BuildList() end
+                            -- limpa seleção se o player saiu
                             if not multi and selected and not selected.Parent then
                                 selected=nil; SunUI.Flags[fid]=nil; UpdatePreview()
                             end
@@ -3037,8 +2970,11 @@ function SunUI:CreateWindow(opts)
                 if tip~="" then U.Tooltip(Wrap,tip) end
                 RS(lbl,Wrap)
 
+                -- ── Objeto retornado
                 local Obj={_element=Wrap}
-                function Obj:Get() return SunUI.Flags[fid] end
+                function Obj:Get()
+                    return SunUI.Flags[fid]
+                end
                 function Obj:GetName()
                     if multi then
                         local names={}
@@ -3052,7 +2988,9 @@ function SunUI:CreateWindow(opts)
                     SunUI.Flags[fid]=multi and multiSel or nil
                     RefreshAllChecks(); UpdatePreview()
                 end
-                function Obj:Refresh() if isOpen then BuildList() end end
+                function Obj:Refresh()
+                    if isOpen then BuildList() end
+                end
                 return Obj
             end
 
@@ -3184,26 +3122,15 @@ function SunUI:CreateWindow(opts)
                 local c=Card(44)
                 U.New("TextLabel",{Size=UDim2.new(0.6,0,0,16),Position=UDim2.new(0,10,0,5),BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},c)
                 local pLbl=U.New("TextLabel",{Size=UDim2.new(0.4,0,0,16),Position=UDim2.new(0.6,0,0,5),BackgroundTransparency=1,Text=tostring(value)..suf,TextColor3=T.TextAccent,Font=Enum.Font.GothamBold,TextSize=11,TextXAlignment=Enum.TextXAlignment.Right,ZIndex=5},c)
-                TrackAccent(pLbl,"TextColor3")
                 local trk=U.New("Frame",{Size=UDim2.new(1,-20,0,7),Position=UDim2.new(0,10,0,27),BackgroundColor3=T.TrackBg,ZIndex=5},c)
                 U.Corner(4,trk)
                 local rel=(mx>mn) and (value-mn)/(mx-mn) or 0
                 local fi=U.New("Frame",{Size=UDim2.new(rel,0,1,0),BackgroundColor3=T.Accent,ZIndex=6},trk)
                 U.Corner(4,fi); TrackAccent(fi,"BackgroundColor3")
-                if T.AccentB and T.AccentB ~= T.Accent then
-                    U.New("UIGradient",{
-                        Color=ColorSequence.new({
-                            ColorSequenceKeypoint.new(0,T.Accent),
-                            ColorSequenceKeypoint.new(1,T.AccentB),
-                        }),
-                    },fi)
-                end
                 local Obj={_element=c}
                 function Obj:Set(v)
-                    value=math.clamp(tonumber(v) or mn,mn,mx)
-                    if pLbl then pcall(function() pLbl.Text=tostring(value)..suf end) end
-                    local r=(mx>mn) and (value-mn)/(mx-mn) or 0
-                    U.Tween(fi,{Size=UDim2.new(r,0,1,0)},0.3)
+                    value=math.clamp(tonumber(v) or mn,mn,mx); if pLbl then pcall(function() pLbl.Text=tostring(value)..suf end) end
+                    local r=(mx>mn) and (value-mn)/(mx-mn) or 0; U.Tween(fi,{Size=UDim2.new(r,0,1,0)},0.3)
                 end
                 function Obj:Get() return value end
                 return Obj
@@ -3217,68 +3144,24 @@ function SunUI:CreateWindow(opts)
             end
 
             -- ═══ ACCENT PICKER ═══════════
-            -- FIX: bolinhas não somem ao hover — usar AnchorPoint correto
             function Sec:AccentPicker(opts)
                 opts=opts or {}
                 local lbl=tostring(opts.Name or "Cor do Hub"); local tip=tostring(opts.Tooltip or "")
                 local c=Card(44)
                 U.New("TextLabel",{Size=UDim2.new(0.44,0,1,0),Position=UDim2.new(0,10,0,0),BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},c)
-
-                local presets={
-                    Color3.fromRGB(99,102,241),
-                    Color3.fromRGB(168,85,247),
-                    Color3.fromRGB(239,68,68),
-                    Color3.fromRGB(6,182,212),
-                    Color3.fromRGB(16,185,129),
-                    Color3.fromRGB(251,191,36),
-                    Color3.fromRGB(249,115,22),
-                    Color3.fromRGB(236,72,153),
-                }
-
-                -- FIX: bolinhas com posição absoluta dentro de um container
-                -- Usando UDim2 com escala para não quebrar no resize
-                local dotContainer=U.New("Frame",{
-                    Size=UDim2.new(0,170,0,32),
-                    Position=UDim2.new(0,155,0.5,-16),
-                    BackgroundTransparency=1,ZIndex=5,
-                },c)
-
-                for idx,pc in ipairs(presets) do
-                    -- Calcula posição X fixo com offset de 20px por bolinha
-                    local xPos=(idx-1)*21
-                    -- FIX: usa Frame com AnchorPoint(0.5,0.5) e Position absoluta fixa
-                    -- Sem alterar o Parent ao fazer hover — só muda Size
-                    local dotWrapper=U.New("Frame",{
-                        Size=UDim2.new(0,20,0,20),
-                        Position=UDim2.new(0,xPos,0.5,-10),
-                        BackgroundTransparency=1,ZIndex=5,
-                    },dotContainer)
-                    local pb=U.New("Frame",{
-                        Size=UDim2.new(1,0,1,0),
-                        AnchorPoint=Vector2.new(0.5,0.5),
-                        Position=UDim2.new(0.5,0,0.5,0),
-                        BackgroundColor3=pc,ZIndex=6,
-                    },dotWrapper)
+                local presets={Color3.fromRGB(99,102,241),Color3.fromRGB(168,85,247),Color3.fromRGB(239,68,68),Color3.fromRGB(6,182,212),Color3.fromRGB(16,185,129),Color3.fromRGB(251,191,36),Color3.fromRGB(249,115,22),Color3.fromRGB(236,72,153)}
+                local px=172
+                for _,pc in ipairs(presets) do
+                    local pb=U.New("Frame",{Size=UDim2.new(0,16,0,16),Position=UDim2.new(0,px,0.5,-8),BackgroundColor3=pc,ZIndex=5},c)
                     U.Corner(999,pb)
-                    U.Stroke(T.Border,1,pb)
-                    local ph2=U.New("TextButton",{
-                        Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=7,
-                    },dotWrapper)
-                    ph2.MouseButton1Click:Connect(function()
-                        SunUI:SetAccentColor(pc)
-                    end)
-                    -- FIX: hover escala a bolinha SEM mudar Position
-                    ph2.MouseEnter:Connect(function()
-                        U.Tween(pb,{Size=UDim2.new(1.25,0,1.25,0)},0.12)
-                    end)
-                    ph2.MouseLeave:Connect(function()
-                        U.Tween(pb,{Size=UDim2.new(1,0,1,0)},0.12)
-                    end)
+                    local ph2=U.New("TextButton",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=6},pb)
+                    ph2.MouseButton1Click:Connect(function() SunUI:SetAccentColor(pc) end)
+                    pb.MouseEnter:Connect(function() U.Tween(pb,{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,px-2,0.5,-10)},0.1) end)
+                    pb.MouseLeave:Connect(function() U.Tween(pb,{Size=UDim2.new(0,16,0,16),Position=UDim2.new(0,px,0.5,-8)},0.1) end)
+                    px=px+19
                 end
-
                 local rbBtn=U.New("TextButton",{
-                    Size=UDim2.new(0,48,0,22),
-                    Position=UDim2.new(1,-56,0.5,-11),
+                    Size=UDim2.new(0,48,0,22),Position=UDim2.new(1,-56,0.5,-11),
                     BackgroundColor3=T.Surface,Text="🌈 RGB",TextColor3=T.Text,
                     Font=Enum.Font.GothamBold,TextSize=8,ZIndex=6,
                 },c)
@@ -3298,6 +3181,7 @@ function SunUI:CreateWindow(opts)
                 U.New("TextLabel",{Size=UDim2.new(1,-8,1,0),Position=UDim2.new(0,4,0,0),BackgroundTransparency=1,Text="PERFIS DE CONFIGURAÇÃO",TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},hdr)
                 U.New("Frame",{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,1,-1),BackgroundColor3=T.Border,ZIndex=3},hdr)
 
+                -- Input do nome do perfil
                 local pRow=U.New("Frame",{Size=UDim2.new(1,0,0,44),BackgroundColor3=T.SurfaceHigh,ZIndex=4},SWrap)
                 U.Corner(9,pRow)
                 U.New("TextLabel",{Size=UDim2.new(1,-16,0,14),Position=UDim2.new(0,10,0,4),BackgroundTransparency=1,Text="Nome do Perfil",TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=10,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},pRow)
@@ -3320,14 +3204,16 @@ function SunUI:CreateWindow(opts)
 
                 saveBtn.MouseButton1Click:Connect(function()
                     if not pTB or pTB.Text=="" then
-                        SunUI:Notify({Title="Perfil",Message="Digite um nome para o perfil!",Type="Warning"}); return
+                        SunUI:Notify({Title="Perfil",Message="Digite um nome para o perfil!",Type="Warning"})
+                        return
                     end
                     SunUI:SaveProfile(pTB.Text)
-                    SunUI:Notify({Title="Perfil salvo!",Message="Perfil '"..pTB.Text.."' salvo.",Type="Success"})
+                    SunUI:Notify({Title="Perfil salvo!",Message="Perfil '"..pTB.Text.."' salvo com sucesso.",Type="Success"})
                 end)
                 loadBtn.MouseButton1Click:Connect(function()
                     if not pTB or pTB.Text=="" then
-                        SunUI:Notify({Title="Perfil",Message="Digite o nome do perfil!",Type="Warning"}); return
+                        SunUI:Notify({Title="Perfil",Message="Digite o nome do perfil a carregar!",Type="Warning"})
+                        return
                     end
                     SunUI:LoadProfile(pTB.Text)
                     SunUI:Notify({Title="Perfil carregado!",Message="Perfil '"..pTB.Text.."' restaurado.",Type="Success"})
@@ -3344,6 +3230,57 @@ function SunUI:CreateWindow(opts)
                 local bcl=U.List(4,Enum.HorizontalAlignment.Center,bgC); U.AutoHeight(bgC,bcl,4)
                 MakeBgManager(bgC,T,SetBg)
                 return {_element=bgC}
+            end
+
+                        -- ═══ DESTROY BUTTON ══════════
+            function Sec:DestroyButton(opts)
+                opts=opts or {}
+                local lbl=tostring(opts.Name or "Fechar Hub")
+                local desc=opts.Desc
+                local confirmText=tostring(opts.ConfirmText or "Isso irá fechar o hub completamente. Tem certeza?")
+                local c=U.New("TextButton",{Size=UDim2.new(1,0,0,desc and 52 or 44),BackgroundColor3=T.SurfaceHigh,Text="",ZIndex=4},SWrap)
+                U.Corner(9,c); U.Ripple(c,T.Bad)
+                local ib=U.New("Frame",{Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,10,0.5,-14),BackgroundColor3=U.Lerp(T.Bad,Color3.new(0,0,0),0.6),ZIndex=5},c)
+                U.Corner(7,ib)
+                U.New("TextLabel",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="⏻",TextColor3=T.Bad,Font=Enum.Font.GothamBold,TextSize=13,ZIndex=6},ib)
+                U.New("TextLabel",{Size=UDim2.new(1,-92,0,desc and 18 or 28),Position=UDim2.new(0,48,0,desc and 7 or 8),BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},c)
+                if desc then U.New("TextLabel",{Size=UDim2.new(1,-92,0,14),Position=UDim2.new(0,48,0,26),BackgroundTransparency=1,Text=tostring(desc),TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=9,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},c) end
+                U.New("TextLabel",{Size=UDim2.new(0,22,1,0),Position=UDim2.new(1,-24,0,0),BackgroundTransparency=1,Text="›",TextColor3=T.Bad,Font=Enum.Font.GothamBold,TextSize=20,ZIndex=5},c)
+                c.MouseEnter:Connect(function() U.Tween(c,{BackgroundColor3=U.Lerp(T.SurfaceHigh,T.Bad,0.08)},0.15) end)
+                c.MouseLeave:Connect(function() U.Tween(c,{BackgroundColor3=T.SurfaceHigh},0.15) end)
+                c.MouseButton1Up:Connect(function()
+                    local s2=SunUI._screen
+                    if not s2 then StopRainbow(); if Screen and Screen.Parent then Screen:Destroy() end; return end
+                    local ov2=U.New("Frame",{Size=UDim2.new(1,0,1,0),BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=0.55,ZIndex=700},s2)
+                    local pop2=U.New("Frame",{Size=UDim2.new(0,340,0,0),Position=UDim2.new(0.5,-170,0.5,-76),BackgroundColor3=T.Surface,BackgroundTransparency=1,ZIndex=701},s2)
+                    U.Corner(12,pop2); U.Stroke(T.Bad,1.8,pop2)
+                    U.New("TextLabel",{Size=UDim2.new(1,-20,0,22),Position=UDim2.new(0,10,0,14),BackgroundTransparency=1,Text="⏻  "..lbl,TextColor3=T.Bad,Font=Enum.Font.GothamBold,TextSize=14,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=702},pop2)
+                    U.New("TextLabel",{Size=UDim2.new(1,-20,0,40),Position=UDim2.new(0,10,0,40),BackgroundTransparency=1,Text=confirmText,TextColor3=T.TextSub,Font=Enum.Font.Gotham,TextSize=11,TextWrapped=true,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=702},pop2)
+                    local yB=U.New("TextButton",{Size=UDim2.new(0,120,0,34),Position=UDim2.new(0,10,0,112),BackgroundColor3=T.Bad,Text="Confirmar",TextColor3=Color3.new(1,1,1),Font=Enum.Font.GothamBold,TextSize=12,ZIndex=702},pop2)
+                    U.Corner(8,yB); U.Ripple(yB,Color3.new(1,1,1))
+                    local nB=U.New("TextButton",{Size=UDim2.new(0,100,0,34),Position=UDim2.new(1,-112,0,112),BackgroundColor3=T.Surface,Text="Cancelar",TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=12,ZIndex=702},pop2)
+                    U.Corner(8,nB); U.Stroke(T.Border,1,nB)
+                    nB.MouseButton1Click:Connect(function()
+                        U.Tween(pop2,{BackgroundTransparency=1,Size=UDim2.new(0,340,0,0)},0.22)
+                        U.Tween(ov2,{BackgroundTransparency=1},0.22)
+                        task.delay(0.26,function()
+                            if pop2 and pop2.Parent then pop2:Destroy() end
+                            if ov2 and ov2.Parent then ov2:Destroy() end
+                        end)
+                    end)
+                    yB.MouseButton1Click:Connect(function()
+                        if ov2 and ov2.Parent then ov2:Destroy() end
+                        if pop2 and pop2.Parent then pop2:Destroy() end
+                        SaveMgr:Save(SunUI.Flags); StopRainbow()
+                        task.delay(0.08,function()
+                            if Screen and Screen.Parent then Screen:Destroy() end
+                        end)
+                    end)
+                    U.Spring(pop2,{Size=UDim2.new(0,340,0,156),BackgroundTransparency=0},0.36)
+                    U.Draggable(pop2,pop2)
+                end)
+                RS(lbl,c)
+                return {_element=c}
             end
 
             -- ═══ NOTIFY POSITION PICKER ══
@@ -3365,7 +3302,7 @@ function SunUI:CreateWindow(opts)
                     U.Corner(7,pb2); U.Stroke(T.Border,1,pb2)
                     pb2.MouseButton1Click:Connect(function()
                         SunUI:SetNotifyPosition(pos)
-                        SunUI:Notify({Title="Notificações",Message="Posição: "..pos,Type="Info",Duration=2})
+                        SunUI:Notify({Title="Notificações",Message="Posição alterada: "..pos,Type="Info",Duration=2})
                         pcall(function()
                             for _,ch in ipairs(c:GetChildren()) do
                                 if ch:IsA("TextButton") then U.Tween(ch,{BackgroundColor3=T.Surface},0.15) end
@@ -3378,51 +3315,31 @@ function SunUI:CreateWindow(opts)
                 return {_element=c}
             end
 
-            -- ═══ DESTROY BUTTON ══════════
-            -- Botão que chama Win:Destroy()
-            function Sec:DestroyButton(opts)
-                opts=opts or {}
-                return self:Button({
-                    Name=tostring(opts.Name or "Fechar Hub"),
-                    Desc=opts.Desc or "Reseta e fecha o hub (reexecute para reabrir)",
-                    Icon=opts.Icon or "🗑",
-                    Confirm=opts.Confirm~=false,
-                    ConfirmText=opts.ConfirmText or "Isso irá fechar o hub completamente. Reexecute o script para reabrir.",
-                    Tooltip=opts.Tooltip or "Fecha e limpa o hub da memória",
-                    Callback=function()
-                        Win:Destroy()
-                    end,
-                })
-            end
-
             return Sec
         end -- Tab:Section
         return Tab
     end -- Win:Tab
 
-    -- Abrir janela
+    -- ── Abrir janela (com typewriter no título)
     local function OpenMain()
-        if MainWrap then
-            MainWrap.BackgroundTransparency=1
-            MainWrap.Size=UDim2.new(0,W,0,0)
-            U.Spring(MainWrap,{Size=UDim2.new(0,W,0,H),BackgroundTransparency=0},0.42)
-        end
+        Main.BackgroundTransparency=1; Main.Size=UDim2.new(0,W,0,0)
+        U.Spring(Main,{Size=UDim2.new(0,W,0,H),BackgroundTransparency=0},0.42)
         if titleLbl then
             titleLbl.Text=""
             task.delay(0.2,function() U.Typewriter(titleLbl,title,0.038) end)
         end
     end
 
-    local function AfterKey() if Main then Main.Visible=true end; OpenMain() end
+    local function AfterKey() Main.Visible=true; OpenMain() end
 
     if showIntro then
-        if Main then Main.Visible=false end
+        Main.Visible=false
         PlayIntro(Screen,T,title,function()
             if keyOpts then ShowKeySystem(keyOpts,Screen,T,AfterKey)
             else AfterKey() end
         end)
     elseif keyOpts then
-        if Main then Main.Visible=false end
+        Main.Visible=false
         ShowKeySystem(keyOpts,Screen,T,AfterKey)
     else
         OpenMain()
