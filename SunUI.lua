@@ -1,6 +1,6 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
-║   ☀  SunUI  •  v5.2  •  RELEASE EDITION                            ║
+║   ☀  SunUI  •  v5.3  •  RELEASE EDITION                            ║
 ║   100% Bug-Free  •  Universal  •  Design Lost-Hub inspired          ║
 ║                                                                      ║
 ║   DESTAQUES:                                                         ║
@@ -13,6 +13,7 @@
 ║   ✦ Stats Widget (FPS/Ping/Players), Watermark, CursorTrail        ║
 ║   ✦ Confirmação em botões destrutivos — popup seguro               ║
 ║   ✦ Animação de erro no Slider (flash vermelho + shake suave)      ║
+║   ✦ PlayerDropdown — lista de players com avatar, nome e @username  ║
 ║   ✦ Todos os callbacks em pcall — crash do user não quebra a lib   ║
 ╚══════════════════════════════════════════════════════════════════════╝
 ]]
@@ -38,7 +39,7 @@ local LP = Players and Players.LocalPlayer
 -- TABELA PRINCIPAL
 -- ════════════════════════════════════════════════
 local SunUI = {
-    Version    = "5.2.0",
+    Version    = "5.3.0",
     Flags      = {},
     Profiles   = {},        -- sistema de perfis
     _screen    = nil,
@@ -2396,6 +2397,408 @@ function SunUI:CreateWindow(opts)
                         table.insert(optObjs,{btn=ob2,val=opt,ref=function()end})
                     end
                     listH=#options*(iH+2)+42
+                end
+                return Obj
+            end
+
+
+            -- ═══ PLAYER DROPDOWN ════════════
+            -- Lista de players do servidor com avatar, DisplayName e @username
+            function Sec:PlayerDropdown(opts)
+                opts=opts or {}
+                local lbl=tostring(opts.Name or "Selecionar Player")
+                local multi=opts.Multi==true
+                local cb=type(opts.Callback)=="function" and opts.Callback or function()end
+                local fid=tostring(opts.Flag or U.ID())
+                local tip=tostring(opts.Tooltip or "")
+                local includeLocal=opts.IncludeLocal~=false  -- inclui o proprio player por padrão
+                local autoUpdate=opts.AutoUpdate~=false       -- atualiza quando player entra/sai
+
+                local selected=nil
+                local multiSel={}
+                SunUI.Flags[fid]=multi and multiSel or selected
+
+                local isOpen=false
+                local ITEM_H=48  -- altura de cada item (comporta avatar + 2 linhas de texto)
+                local MAX_VISIBLE=5 -- máx visíveis antes de scrollar
+
+                -- ── Header do componente
+                local Wrap=U.New("Frame",{
+                    Size=UDim2.new(1,0,0,44),
+                    BackgroundColor3=T.SurfaceHigh,ZIndex=6,
+                },SWrap)
+                U.Corner(9,Wrap)
+
+                -- Ícone de pessoas
+                local hIco=U.New("Frame",{
+                    Size=UDim2.new(0,28,0,28),Position=UDim2.new(0,10,0.5,-14),
+                    BackgroundColor3=T.AccentDim,ZIndex=7,
+                },Wrap)
+                U.Corner(7,hIco); TrackAccent(hIco,"BackgroundColor3")
+                U.New("TextLabel",{
+                    Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+                    Text="👥",Font=Enum.Font.GothamBold,TextSize=13,ZIndex=8,
+                },hIco)
+
+                U.New("TextLabel",{
+                    Size=UDim2.new(0.44,0,1,0),Position=UDim2.new(0,46,0,0),
+                    BackgroundTransparency=1,Text=lbl,
+                    TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=12,
+                    TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
+                },Wrap)
+
+                -- Preview do selecionado (avatar mini + nome)
+                local prevF=U.New("Frame",{
+                    Size=UDim2.new(0,130,0,32),Position=UDim2.new(1,-142,0.5,-16),
+                    BackgroundColor3=T.Surface,ZIndex=7,
+                },Wrap)
+                U.Corner(8,prevF); U.Stroke(T.Border,1,prevF)
+
+                local prevAvatar=U.New("ImageLabel",{
+                    Size=UDim2.new(0,24,0,24),Position=UDim2.new(0,4,0.5,-12),
+                    BackgroundColor3=T.SurfaceHover,BackgroundTransparency=0,
+                    Image="",ZIndex=8,
+                },prevF)
+                U.Corner(999,prevAvatar)
+
+                local prevName=U.New("TextLabel",{
+                    Size=UDim2.new(1,-36,0,16),Position=UDim2.new(0,32,0,4),
+                    BackgroundTransparency=1,
+                    Text=multi and "Nenhum" or "Selecionar",
+                    TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=10,
+                    TextXAlignment=Enum.TextXAlignment.Left,
+                    TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=8,
+                },prevF)
+                local prevUser=U.New("TextLabel",{
+                    Size=UDim2.new(1,-36,0,12),Position=UDim2.new(0,32,0,20),
+                    BackgroundTransparency=1,Text="",
+                    TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=8,
+                    TextXAlignment=Enum.TextXAlignment.Left,
+                    TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=8,
+                },prevF)
+
+                local arrow=U.New("TextLabel",{
+                    Size=UDim2.new(0,14,1,0),Position=UDim2.new(1,-16,0,0),
+                    BackgroundTransparency=1,Text="▾",
+                    TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=10,ZIndex=8,
+                },Wrap)
+
+                -- ── Lista dropdown
+                local ListF=U.New("Frame",{
+                    Size=UDim2.new(1,0,0,0),
+                    Position=UDim2.new(0,0,1,4),
+                    BackgroundColor3=T.Surface,
+                    ClipsDescendants=true,
+                    Visible=false,ZIndex=20,
+                },Wrap)
+                U.Corner(10,ListF); U.Stroke(T.Border,1,ListF)
+
+                -- Search bar
+                local sBg=U.New("Frame",{
+                    Size=UDim2.new(1,-10,0,28),
+                    BackgroundColor3=T.InputBg,ZIndex=21,
+                },ListF)
+                U.Corner(7,sBg)
+                U.New("TextLabel",{
+                    Size=UDim2.new(0,22,1,0),BackgroundTransparency=1,
+                    Text="🔍",TextSize=11,ZIndex=22,
+                },sBg)
+                local sTB=U.New("TextBox",{
+                    Size=UDim2.new(1,-26,1,0),Position=UDim2.new(0,22,0,0),
+                    BackgroundTransparency=1,Text="",
+                    PlaceholderText="Buscar jogador...",
+                    PlaceholderColor3=T.TextMuted,
+                    TextColor3=T.Text,Font=Enum.Font.Gotham,TextSize=11,
+                    ClearTextOnFocus=false,ZIndex=22,
+                },sBg)
+
+                -- Scroll com lista de players
+                local scroll=U.New("ScrollingFrame",{
+                    Size=UDim2.new(1,0,1,-36),Position=UDim2.new(0,0,0,36),
+                    BackgroundTransparency=1,
+                    ScrollBarThickness=3,ScrollBarImageColor3=T.Scrollbar,
+                    ZIndex=21,
+                },ListF)
+                local scrollL=U.List(2,Enum.HorizontalAlignment.Center,scroll)
+                U.Pad(4,4,5,5,scroll)
+                U.AutoCanvas(scroll,scrollL,8)
+
+                -- ── Funções de estado
+                local itemObjs={}  -- {player, btn, avatarImg, nameL, userL, chk, chkMark}
+
+                local function GetAvatarUrl(userId)
+                    return "https://www.roblox.com/headshot-thumbnail/image?userId="
+                        ..tostring(userId).."&width=150&height=150&format=png"
+                end
+
+                local function UpdatePreview()
+                    if multi then
+                        if #multiSel==0 then
+                            if prevAvatar then pcall(function() prevAvatar.Image="" end) end
+                            if prevName then pcall(function() prevName.Text="Nenhum" end) end
+                            if prevUser then pcall(function() prevUser.Text="" end) end
+                        else
+                            local p=multiSel[1]
+                            if prevAvatar then pcall(function() prevAvatar.Image=GetAvatarUrl(p.UserId) end) end
+                            if prevName then pcall(function() prevName.Text=p.DisplayName..(#multiSel>1 and " +"..tostring(#multiSel-1) or "") end) end
+                            if prevUser then pcall(function() prevUser.Text="@"..p.Name end) end
+                        end
+                    else
+                        if selected then
+                            if prevAvatar then pcall(function() prevAvatar.Image=GetAvatarUrl(selected.UserId) end) end
+                            if prevName then pcall(function() prevName.Text=selected.DisplayName end) end
+                            if prevUser then pcall(function() prevUser.Text="@"..selected.Name end) end
+                        else
+                            if prevAvatar then pcall(function() prevAvatar.Image="" end) end
+                            if prevName then pcall(function() prevName.Text="Selecionar" end) end
+                            if prevUser then pcall(function() prevUser.Text="" end) end
+                        end
+                    end
+                end
+
+                local function IsSelected(p)
+                    if multi then return table.find(multiSel,p)~=nil
+                    else return selected==p end
+                end
+
+                local function RefreshAllChecks()
+                    for _,item in ipairs(itemObjs) do
+                        local on=IsSelected(item.player)
+                        if item.chk then U.Tween(item.chk,{BackgroundColor3=on and T.Accent or T.TrackBg},0.12) end
+                        if item.chkMark then pcall(function() item.chkMark.Visible=on end) end
+                        if item.nameL then U.Tween(item.nameL,{TextColor3=on and T.Text or T.TextSub},0.12) end
+                        if item.btn then U.Tween(item.btn,{BackgroundColor3=on and T.SurfaceHover or T.Surface},0.12) end
+                    end
+                end
+
+                -- Constrói um item de player
+                local function MakeItem(player)
+                    local btn=U.New("TextButton",{
+                        Size=UDim2.new(1,0,0,ITEM_H),
+                        BackgroundColor3=T.Surface,Text="",ZIndex=22,
+                    },scroll)
+                    if not btn then return end
+                    U.Corner(8,btn)
+
+                    -- Avatar com borda colorida se selecionado
+                    local avRing=U.New("Frame",{
+                        Size=UDim2.new(0,36,0,36),Position=UDim2.new(0,8,0.5,-18),
+                        BackgroundColor3=T.Border,ZIndex=23,
+                    },btn)
+                    U.Corner(999,avRing)
+                    local avImg=U.New("ImageLabel",{
+                        Size=UDim2.new(1,-4,1,-4),Position=UDim2.new(0,2,0,2),
+                        BackgroundColor3=T.SurfaceHigh,
+                        Image=GetAvatarUrl(player.UserId),
+                        ZIndex=24,
+                    },avRing)
+                    U.Corner(999,avImg)
+
+                    -- DisplayName (negrito)
+                    local nameL=U.New("TextLabel",{
+                        Size=UDim2.new(1,-88,0,18),Position=UDim2.new(0,52,0,8),
+                        BackgroundTransparency=1,
+                        Text=player.DisplayName,
+                        TextColor3=T.TextSub,Font=Enum.Font.GothamBold,TextSize=12,
+                        TextXAlignment=Enum.TextXAlignment.Left,
+                        TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=23,
+                    },btn)
+
+                    -- @username
+                    local userL=U.New("TextLabel",{
+                        Size=UDim2.new(1,-88,0,14),Position=UDim2.new(0,52,0,27),
+                        BackgroundTransparency=1,
+                        Text="@"..player.Name,
+                        TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
+                        TextXAlignment=Enum.TextXAlignment.Left,
+                        TextTruncate=Enum.TextTruncate.AtEnd,ZIndex=23,
+                    },btn)
+
+                    -- Checkmark
+                    local chk=U.New("Frame",{
+                        Size=UDim2.new(0,20,0,20),Position=UDim2.new(1,-28,0.5,-10),
+                        BackgroundColor3=T.TrackBg,ZIndex=23,
+                    },btn)
+                    U.Corner(6,chk)
+                    local chkMark=U.New("TextLabel",{
+                        Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+                        Text="✓",TextColor3=Color3.new(1,1,1),
+                        Font=Enum.Font.GothamBold,TextSize=10,
+                        Visible=false,ZIndex=24,
+                    },chk)
+
+                    -- Linha separadora sutil
+                    U.New("Frame",{
+                        Size=UDim2.new(1,-12,0,1),Position=UDim2.new(0,6,1,-1),
+                        BackgroundColor3=T.Border,BackgroundTransparency=0.5,ZIndex=22,
+                    },btn)
+
+                    -- Hover
+                    btn.MouseEnter:Connect(function()
+                        if not IsSelected(player) then U.Tween(btn,{BackgroundColor3=T.SurfaceHover},0.1) end
+                        -- Highlight do anel do avatar com cor accent
+                        U.Tween(avRing,{BackgroundColor3=T.Accent},0.12)
+                    end)
+                    btn.MouseLeave:Connect(function()
+                        if not IsSelected(player) then U.Tween(btn,{BackgroundColor3=T.Surface},0.1) end
+                        U.Tween(avRing,{BackgroundColor3=T.Border},0.12)
+                    end)
+
+                    btn.MouseButton1Click:Connect(function()
+                        if multi then
+                            local idx=table.find(multiSel,player)
+                            if idx then table.remove(multiSel,idx)
+                            else table.insert(multiSel,player) end
+                            SunUI.Flags[fid]=multiSel
+                            RefreshAllChecks(); UpdatePreview()
+                            pcall(cb, multiSel)
+                        else
+                            selected=player
+                            SunUI.Flags[fid]=player
+                            RefreshAllChecks(); UpdatePreview()
+                            pcall(cb, player)
+                            -- fechar ao selecionar (single)
+                            isOpen=false
+                            local listH=math.min(#itemObjs,MAX_VISIBLE)*ITEM_H+38+8
+                            U.Tween(Wrap,{Size=UDim2.new(1,0,0,44)},0.22)
+                            U.Tween(ListF,{Size=UDim2.new(1,0,0,0)},0.22)
+                            U.Tween(arrow,{Rotation=0},0.2)
+                            task.delay(0.25,function()
+                                if ListF then pcall(function() ListF.Visible=false end) end
+                            end)
+                        end
+                    end)
+
+                    local obj={player=player,btn=btn,avRing=avRing,avImg=avImg,
+                               nameL=nameL,userL=userL,chk=chk,chkMark=chkMark}
+                    table.insert(itemObjs,obj)
+                    return obj
+                end
+
+                -- Popula lista com players atuais
+                local function BuildList()
+                    -- Limpar itens existentes
+                    for _,item in ipairs(itemObjs) do
+                        if item.btn and item.btn.Parent then
+                            pcall(function() item.btn:Destroy() end)
+                        end
+                    end
+                    itemObjs={}
+                    -- Validar seleções (player pode ter saído)
+                    if not multi and selected then
+                        if not selected.Parent then selected=nil; SunUI.Flags[fid]=nil end
+                    end
+                    if multi then
+                        for i=#multiSel,1,-1 do
+                            if not multiSel[i].Parent then table.remove(multiSel,i) end
+                        end
+                    end
+                    local plist={}
+                    pcall(function() plist=Players:GetPlayers() end)
+                    for _,p in ipairs(plist) do
+                        if includeLocal or p~=LP then
+                            MakeItem(p)
+                        end
+                    end
+                    RefreshAllChecks(); UpdatePreview()
+                    return #itemObjs
+                end
+
+                -- Filtro de busca
+                if sTB then
+                    sTB:GetPropertyChangedSignal("Text"):Connect(function()
+                        local q=sTB.Text:lower():gsub("^%s*(.-)%s*$","%1")
+                        local vis=0
+                        for _,item in ipairs(itemObjs) do
+                            if item.btn and item.btn.Parent then
+                                local match=(q==""
+                                    or item.player.Name:lower():find(q,1,true)
+                                    or item.player.DisplayName:lower():find(q,1,true))
+                                pcall(function() item.btn.Visible=match and true or false end)
+                                if match then vis=vis+1 end
+                            end
+                        end
+                    end)
+                end
+
+                -- Trigger de abrir/fechar
+                local hitBtn=U.New("TextButton",{
+                    Size=UDim2.new(1,0,0,44),BackgroundTransparency=1,Text="",ZIndex=9,
+                },Wrap)
+                hitBtn.MouseButton1Click:Connect(function()
+                    isOpen=not isOpen
+                    if isOpen then
+                        local count=BuildList()
+                        local visItems=math.min(count,MAX_VISIBLE)
+                        local listH=visItems*ITEM_H+38+8
+                        ListF.Visible=true
+                        U.Tween(Wrap,{Size=UDim2.new(1,0,0,44+4+listH)},0.26,Enum.EasingStyle.Quart)
+                        U.Tween(ListF,{Size=UDim2.new(1,0,0,listH)},0.26,Enum.EasingStyle.Quart)
+                        U.Tween(arrow,{Rotation=180},0.22)
+                    else
+                        U.Tween(Wrap,{Size=UDim2.new(1,0,0,44)},0.22)
+                        U.Tween(ListF,{Size=UDim2.new(1,0,0,0)},0.22)
+                        U.Tween(arrow,{Rotation=0},0.2)
+                        task.delay(0.25,function()
+                            if ListF then pcall(function() ListF.Visible=false end) end
+                        end)
+                    end
+                end)
+
+                -- Hover no header
+                Wrap.MouseEnter:Connect(function()
+                    if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHover},0.15) end
+                end)
+                Wrap.MouseLeave:Connect(function()
+                    if not isOpen then U.Tween(Wrap,{BackgroundColor3=T.SurfaceHigh},0.15) end
+                end)
+
+                -- Auto-update quando player entra/sai
+                if autoUpdate then
+                    local conAdd, conRem
+                    pcall(function()
+                        conAdd=Players.PlayerAdded:Connect(function()
+                            if isOpen then BuildList() end
+                        end)
+                        conRem=Players.PlayerRemoving:Connect(function()
+                            if isOpen then BuildList() end
+                            -- limpa seleção se o player saiu
+                            if not multi and selected and not selected.Parent then
+                                selected=nil; SunUI.Flags[fid]=nil; UpdatePreview()
+                            end
+                            if multi then
+                                for i=#multiSel,1,-1 do
+                                    if not multiSel[i].Parent then table.remove(multiSel,i) end
+                                end
+                                SunUI.Flags[fid]=multiSel; UpdatePreview()
+                            end
+                        end)
+                    end)
+                end
+
+                if tip~="" then U.Tooltip(Wrap,tip) end
+                RS(lbl,Wrap)
+
+                -- ── Objeto retornado
+                local Obj={_element=Wrap}
+                function Obj:Get()
+                    return SunUI.Flags[fid]
+                end
+                function Obj:GetName()
+                    if multi then
+                        local names={}
+                        for _,p in ipairs(multiSel) do table.insert(names,p.Name) end
+                        return names
+                    end
+                    return selected and selected.Name or nil
+                end
+                function Obj:Clear()
+                    selected=nil; multiSel={}
+                    SunUI.Flags[fid]=multi and multiSel or nil
+                    RefreshAllChecks(); UpdatePreview()
+                end
+                function Obj:Refresh()
+                    if isOpen then BuildList() end
                 end
                 return Obj
             end
