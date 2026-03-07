@@ -21,7 +21,6 @@
 local SunUI = loadstring(game:HttpGet("SEU_RAW_URL_AQUI"))()
 ```
 
-> **Como hospedar:** Suba `SunUI_v5_3.lua` no GitHub → abra o arquivo → clique em **Raw** → copie a URL.
 
 **Executors suportados:** Xeno ✅ · Fluxus ✅ · Delta ✅ · Synapse X ✅ · KRNL ✅ · Wave ✅ · e mais
 
