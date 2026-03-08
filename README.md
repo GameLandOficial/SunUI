@@ -1,600 +1,536 @@
 <div align="center">
 
-# ☀ SunUI
-### A melhor biblioteca de UI para Roblox Executors
+# ☀ SunUI v9.0 — Executor UI Library
 
-![versão](https://img.shields.io/badge/versão-6.0.0-blueviolet?style=for-the-badge)
-![status](https://img.shields.io/badge/status-estável-brightgreen?style=for-the-badge)
-![lua](https://img.shields.io/badge/Luau-compatible-orange?style=for-the-badge)
-![executors](https://img.shields.io/badge/Xeno%20%7C%20Fluxus%20%7C%20KRNL%20%7C%20Synapse-supported-blue?style=for-the-badge)
-
-**Design moderno • 6 temas • 100% Bug-Free • Universal**
-
-</div>
-
----
-
-## 📦 Instalação
+> Universal • Design Lost-Hub inspired • Executor Compatible  
+> Melhor que Rayfield, LinoriaLib, Kavo, Orion e FireMax
 
 ```lua
-local SunUI = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/GameLandOficial/SunUI/refs/heads/main/SunUI.lua"
-))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/GameLandOficial/SunUI/main/SunUI.lua"))()
 ```
 
-> **Como hospedar:** Suba `SunUI.lua` no GitHub → abra o arquivo → clique em **Raw** → copie a URL.
+---
 
-**Executors suportados:** Xeno ✅ · Fluxus ✅ · Delta ✅ · Synapse X ✅ · KRNL ✅ · Wave ✅ · e mais
+## O que há de novo na v9.0
+
+| Categoria | Novidade |
+|-----------|----------|
+| **Temas** | +3 novos: Midnight, Sakura, Matrix (total: 9 temas) |
+| **Hot-reload** | `SunUI:SetTheme("Midnight")` — troca tema sem recriar janela |
+| **Sidebar** | Modo compacto (só ícones) — `CompactSidebar=true` ou botão `◀` |
+| **Scroll de abas** | Setas `▲▼` aparecem automaticamente quando há muitas abas |
+| **Scale** | `Scale="auto"` escala automática pela resolução; `Scale=0.9` manual |
+| **Mobile** | `TouchEnabled` detectado, hit areas maiores, janela adaptada |
+| **Animações** | Opcionais: `Animations=false` desativa tudo — padrão: ativo |
+| **Partículas** | Explodem do Toggle ao ativar (se Animations=true) |
+| **Shimmer** | Brilho deslizante ao salvar perfil (se Animations=true) |
+| **Scanline** | Linha animada na intro (se Animations=true) |
+| **Countdown** | `DestroyButton({Countdown=3})` — conta regressiva antes de confirmar |
+| **Som** | `SunUI:SetNotifySounds({Success="id"})` — som por tipo de notif |
+| **Favoritos** | `Sec:FavoritesList` — lista persistente de jogadores favoritos |
+| **Filtro JoinLeave** | `Filter=fn` ou `Filter="padrão"` no StartJoinLeaveNotifier |
+| **WatchFlag** | `SunUI:WatchFlag("flag", fn)` — escuta flag específica |
+| **ExportToFile** | `SunUI:ExportToFile("backup.json")` — salva JSON via executor |
+| **TimePicker** | `Sec:TimePicker` — agenda callback para horário específico |
+| **ImagePreview** | `Sec:ImagePreview` — imagem por AssetId dentro de um card |
+| **AvatarCard** | `Sec:AvatarCard` — card de jogador com avatar + stats + botões |
+| **Group** | `Tab:Group("Nome")` — conjunto colapsável de seções numa aba |
 
 ---
 
-## 🚀 Exemplo completo
+## Início rápido
 
 ```lua
-local SunUI = loadstring(game:HttpGet("SEU_RAW_URL"))()
+local SunUI = loadstring(game:HttpGet("URL_RAW_DO_GITHUB"))()
 
 local Win = SunUI:CreateWindow({
-    Title          = "Meu Hub",
-    Subtitle       = "v1.0 — Feito com SunUI",
-    Version        = "v1.0",
-    Theme          = "Dark",       -- Dark | Amethyst | Crimson | Neon | Emerald | Light
-    AccentColor    = Color3.fromRGB(99, 102, 241),
-    RainbowBorder  = false,
-    ToggleKey      = Enum.KeyCode.RightShift,
-    Intro          = true,
-    ConfigFile     = "MeuHub",
-    DiscordUrl     = "https://discord.gg/xxx",
+    Title        = "Meu Hub",
+    Subtitle     = "v1.0",
+    Theme        = "Dark",         -- Dark | Amethyst | Crimson | Neon
+                                   -- Emerald | Light | Midnight | Sakura | Matrix
+    AccentColor  = Color3.fromRGB(99,102,241),
+    RainbowBorder= false,
+    ToggleKey    = Enum.KeyCode.RightShift,
+    Intro        = true,
+    ConfigFile   = "MeuHub_Config",
+    DiscordUrl   = "https://discord.gg/xxx",
     NotifyPosition = "BotRight",   -- TopLeft | TopRight | BotLeft | BotRight
-    KeySystem      = {
-        Title     = "Key System",
-        Sub       = "Entre no Discord para obter a key",
-        Key       = "MINHAKEY123",     -- string ou tabela: {"KEY1", "KEY2"}
-        Note      = "discord.gg/xxx",
-        GetKeyUrl = "https://...",     -- botão "Get Key" no popup (opcional)
+
+    -- v9: opções novas
+    CompactSidebar = false,        -- sidebar só com ícones
+    Animations     = true,         -- partículas, shimmer, scanline, etc.
+    Scale          = "auto",       -- "auto" | número (ex: 0.9) | nil = padrão
+
+    KeySystem = {
+        Title   = "Verificação",
+        Sub     = "Insira sua key",
+        Key     = { "SUNUI-FREE-2025" },
+        -- Tiers: Key = { Free={"k1"}, VIP={"k2"} }
+        MaxAttempts = 3,
+        LockTime    = 5,
     },
 })
 
-local Tab = Win:Tab("Combat", "⚔")
+local Tab = Win:Tab("Combat", "⚔", 3)   -- nome, ícone, badge (opcional)
 local Sec = Tab:Section("Aimbot")
 
-local togObj = Sec:Toggle({
+Sec:Toggle({
     Name     = "Ativar Aimbot",
-    Desc     = "Liga/desliga o aimbot",
     Default  = false,
     Flag     = "AimbotOn",
-    Tooltip  = "Pressione RightShift para abrir/fechar o menu",
-    Callback = function(state)
-        print("Aimbot:", state)
-    end,
+    Callback = function(v) print("Aimbot:", v) end,
 })
-
-local sldObj = Sec:Slider({
-    Name     = "Smoothness",
-    Min      = 0, Max = 100, Default = 50,
-    Suffix   = "%",
-    Flag     = "AimbotSmooth",
-    Callback = function(val) print("Smooth:", val) end,
-})
-
--- Desabilita o slider quando o toggle está desligado:
-togObj:AddDep(sldObj)
-
--- Ler valores a qualquer momento:
-print(SunUI.Flags["AimbotOn"])
-print(SunUI.Flags["AimbotSmooth"])
 ```
 
 ---
 
-## 🎨 Temas
+## Temas disponíveis (v9)
 
-| Nome | Cor principal | Fundo |
-|---|---|---|
-| `Dark` | Índigo | Preto azulado (padrão) |
-| `Amethyst` | Roxo/Rosa | Escuro profundo |
-| `Crimson` | Vermelho | Escuro avermelhado |
-| `Neon` | Ciano | Azul marinho |
-| `Emerald` | Verde | Escuro esverdeado |
-| `Light` | Índigo | Branco/Claro |
-
-**Tema 100% customizado:**
 ```lua
-Theme = {
-    Name        = "Custom",
-    Bg          = Color3.fromRGB(10,10,15),
-    Surface     = Color3.fromRGB(18,18,28),
-    SurfaceHigh = Color3.fromRGB(24,24,38),
-    SurfaceHover= Color3.fromRGB(32,32,50),
-    Sidebar     = Color3.fromRGB(12,12,20),
-    TitleBar    = Color3.fromRGB(8,8,14),
-    Accent      = Color3.fromRGB(255,100,50),
-    AccentB     = Color3.fromRGB(255,150,80),
-    AccentHover = Color3.fromRGB(230,80,30),
-    AccentDim   = Color3.fromRGB(90,35,15),
-    Border      = Color3.fromRGB(40,40,60),
-    BorderBright= Color3.fromRGB(60,60,85),
-    Text        = Color3.fromRGB(245,245,255),
-    TextSub     = Color3.fromRGB(150,150,185),
-    TextMuted   = Color3.fromRGB(75,75,110),
-    TextAccent  = Color3.fromRGB(255,170,120),
-    Good        = Color3.fromRGB(52,211,153),
-    Warn        = Color3.fromRGB(251,191,36),
-    Bad         = Color3.fromRGB(239,68,68),
-    ToggleOff   = Color3.fromRGB(40,40,60),
-    TrackBg     = Color3.fromRGB(28,28,45),
-    InputBg     = Color3.fromRGB(12,12,20),
-    NotifyBg    = Color3.fromRGB(16,16,26),
-    Scrollbar   = Color3.fromRGB(70,70,120),
-}
+-- Escuro
+Win:SetTheme("Dark")       -- padrão violeta
+Win:SetTheme("Amethyst")   -- roxo-escuro
+Win:SetTheme("Crimson")    -- vermelho
+Win:SetTheme("Neon")       -- azul-ciano
+Win:SetTheme("Emerald")    -- verde
+Win:SetTheme("Midnight")   -- azul GitHub [NOVO v9]
+Win:SetTheme("Sakura")     -- rosa [NOVO v9]
+Win:SetTheme("Matrix")     -- verde Matrix [NOVO v9]
+
+-- Claro
+Win:SetTheme("Light")
 ```
 
 ---
 
-## 📋 API Completa
+## API — CreateWindow
 
-### `SunUI:CreateWindow(opts)` → `Win`
-
-| Campo | Tipo | Padrão | Descrição |
-|---|---|---|---|
-| `Title` | string | `"SunUI"` | Título da janela |
-| `Subtitle` | string | `""` | Subtítulo abaixo do título |
-| `Version` | string | nil | Badge de versão no canto |
-| `Theme` | string/table | `"Dark"` | Nome do tema ou tabela customizada |
-| `AccentColor` | Color3 | nil | Sobrescreve a cor de accent do tema |
-| `AccentColor2` | Color3 | nil | Segunda cor do gradient |
-| `RainbowBorder` | bool | `false` | Borda RGB animada |
-| `ToggleKey` | KeyCode | `RightShift` | Tecla para mostrar/esconder |
-| `Intro` | bool | `true` | Animação de entrada |
-| `ConfigFile` | string | `"SunUI_Config"` | Nome do arquivo `.json` de save |
-| `DiscordUrl` | string | nil | Link do Discord (botão na sidebar) |
-| `NotifyPosition` | string | `"BotRight"` | Posição das notificações |
-| `KeySystem` | table | nil | Ver seção Key System |
-| `Width` / `Height` | number | `720` / `500` | Tamanho inicial da janela |
-
----
-
-### `Win:Tab(name, icon, badge?)` → `Tab`
-
-```lua
-local Tab = Win:Tab("Configurações", "⚙")
-
--- Badge numérico no ícone da aba (opcional):
-local Tab2 = Win:Tab("Notificações", "🔔", 3)
-Tab2:SetBadge(5)   -- atualiza o número depois
-Tab2:SetBadge(0)   -- esconde o badge
-```
+| Opção | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `Title` | string | "SunUI" | Título da janela |
+| `Subtitle` | string | "" | Subtítulo |
+| `Version` | string | nil | Versão exibida |
+| `Theme` | string / table | "Dark" | Nome do tema ou tabela customizada |
+| `AccentColor` | Color3 | — | Cor accent custom |
+| `AccentColor2` | Color3 | — | Segunda accent (gradiente) |
+| `RainbowBorder` | bool | false | Borda rainbow animada |
+| `ToggleKey` | KeyCode | RightShift | Tecla para mostrar/ocultar |
+| `Width` / `Height` | number | 720 / 500 | Tamanho inicial |
+| `Intro` | bool | true | Animação de intro |
+| `ConfigFile` | string | "SunUI_Config" | Nome do arquivo de config |
+| `DiscordUrl` | string | nil | Link Discord (botão na sidebar) |
+| `NotifyPosition` | string | "BotRight" | Posição das notificações |
+| `KeySystem` | table | nil | Config do key system |
+| **`CompactSidebar`** | bool | false | Sidebar só com ícones `[v9]` |
+| **`Animations`** | bool | true | Partículas, shimmer, scanline `[v9]` |
+| **`Scale`** | "auto" / number | nil | Escala automática ou manual `[v9]` |
 
 ---
 
-### `Tab:Section(name)` → `Sec`
-
-Agrupa elementos visualmente com separador e título.
+## API — Win (janela)
 
 ```lua
-local Sec = Tab:Section("Aimbot")
-```
-
----
-
-## 🧩 Componentes
-
-### Toggle
-```lua
-local tog = Sec:Toggle({
-    Name     = "Nome",
-    Desc     = "Descrição opcional",
-    Default  = false,
-    Flag     = "MinhaFlag",
-    Tooltip  = "Texto do tooltip (aparece após 0.5s de hover)",
-    Callback = function(state) end,
-})
-
-tog:Set(true)
-tog:Get()                          -- bool atual
-tog:Toggle()                       -- inverte
-tog:AddDep(outroElemento)          -- esconde/mostra dependendo do toggle
-tog:AddDep(outroElemento, true)    -- inverted: esconde quando ativo
-```
-
-### Slider
-```lua
-local sld = Sec:Slider({
-    Name     = "Velocidade",
-    Min      = 0, Max = 100, Default = 50,
-    Step     = 1,
-    Suffix   = " km/h",
-    Flag     = "Speed",
-    Tooltip  = "...",
-    Callback = function(val) end,
-})
-
-sld:Set(75)     -- valor no range: aplica normalmente
-sld:Set(999)    -- fora do range: flash vermelho + shake animado ✨
-sld:Get()
-```
-
-### Button
-```lua
--- Normal:
-Sec:Button({
-    Name     = "Teleportar",
-    Desc     = "Vai para o spawn",
-    Icon     = "🚀",
-    Tooltip  = "...",
-    Cooldown = 3,      -- cooldown visual em segundos (opcional)
-    Callback = function() end,
-})
-
--- Destrutivo — popup de confirmação antes de executar: ✨
-Sec:Button({
-    Name        = "Deletar Dados",
-    Icon        = "🗑",
-    Confirm     = true,
-    ConfirmText = "Isso apagará todos os seus dados. Tem certeza?",
-    Callback    = function() end,
-})
-```
-
-### Dropdown
-```lua
-local dd = Sec:Dropdown({
-    Name     = "Arma",
-    Options  = {"AK-47", "M4A1", "AWP"},
-    Default  = "AK-47",
-    Multi    = false,
-    Flag     = "Arma",
-    Tooltip  = "...",
-    Callback = function(val) end,
-})
-
-dd:Set("M4A1")
-dd:Get()
-dd:Refresh({"Nova", "Lista"})
-```
-
-### PlayerDropdown ⭐ NOVO
-Lista de jogadores do servidor com **foto**, **DisplayName** e **@username**.
-```lua
-local pd = Sec:PlayerDropdown({
-    Name         = "Selecionar Player",
-    Multi        = false,          -- true = selecionar vários
-    IncludeLocal = true,           -- false = não mostra você mesmo
-    AutoUpdate   = true,           -- atualiza quando alguém entra/sai
-    Flag         = "TargetPlayer",
-    Tooltip      = "...",
-    Callback     = function(player)
-        -- player é um objeto Player do Roblox
-        print(player.Name, player.DisplayName)
-    end,
-})
-
-pd:Get()        -- retorna Player (ou tabela de Players se Multi=true)
-pd:GetName()    -- retorna string do nome (ou tabela de strings se Multi=true)
-pd:Clear()      -- limpa a seleção
-pd:Refresh()    -- força rebuild da lista manualmente
-```
-
-**Funcionalidades:**
-- 🖼️ Foto do avatar (headshot) de cada jogador
-- Nome em negrito + @username menor embaixo
-- Anel do avatar fica na cor do accent no hover
-- Busca por nome ou @username em tempo real
-- Scroll automático quando há mais de 5 players
-- Auto-limpa seleção se o player selecionado sair do servidor
-
-### Keybind
-```lua
-local kb = Sec:Keybind({
-    Name    = "Ativar ESP",
-    Default = Enum.KeyCode.X,
-    Mode    = "Toggle",     -- "Toggle" | "Hold"
-    Flag    = "ESPKey",
-    Tooltip = "...",
-    OnPress = function(holding) end,
-})
-
-kb:Get()
-```
-
-### TextBox
-```lua
-local tb = Sec:TextBox({
-    Name        = "Target",
-    Placeholder = "Nome do jogador...",
-    Default     = "",
-    Numeric     = false,
-    Flag        = "Target",
-    Tooltip     = "...",
-    OnChanged   = function(text) end,
-    OnSubmit    = function(text) end,
-})
-
-tb:Set("Player1")
-tb:Get()
-```
-
-### ColorPicker
-```lua
-local cp = Sec:ColorPicker({
-    Name     = "Cor do ESP",
-    Default  = Color3.fromRGB(255, 80, 80),
-    Flag     = "ESPColor",
-    Tooltip  = "...",
-    Callback = function(color3) end,
-})
-
-cp:Set(Color3.fromRGB(0, 255, 0))
-cp:Get()
-```
-Suporta: **HSV picker** visual + **Hex** (#RRGGBB) + preview **RGB** em tempo real.
-
-### ProgressBar
-```lua
-local pb = Sec:ProgressBar({
-    Name    = "Saúde",
-    Min     = 0, Max = 100, Default = 75,
-    Suffix  = "%",
-})
-
-pb:Set(50)
-pb:Get()
-```
-
-### Label
-```lua
-local lbl = Sec:Label({
-    Text  = "Versão: 1.0.0",
-    Color = Color3.fromRGB(150, 150, 200),
-    Bold  = false,
-    Icon  = "ℹ",
-})
-
-lbl:Set("Versão: 2.0.0")
-lbl:SetColor(Color3.fromRGB(255, 200, 0))
-
-Sec:Label("Texto simples")   -- atalho
-```
-
-### Separator
-```lua
-Sec:Separator()
-Sec:Separator("Avançado")
-```
-
-### ToggleSlider
-```lua
-local tog, sld = Sec:ToggleSlider({
-    Name      = "Speed Hack",
-    TDefault  = false,  TFlag = "SpeedOn",  TCallback = function(s) end,
-    SName     = "Multiplicador",
-    Min = 1,  Max = 10, SDefault = 2,
-    Suffix    = "x",    SFlag = "SpeedVal",  SCallback = function(v) end,
-})
-```
-
-### AccentPicker
-```lua
-Sec:AccentPicker({
-    Name    = "Cor do Hub",
-    Tooltip = "...",
-})
--- 8 presets + botão 🌈 RGB animado
-```
-
-### BackgroundManager
-```lua
-Sec:BackgroundManager()
--- Asset ID numérico, lista de até 12 salvos (SunUI_Backgrounds.json)
--- Botões: Aplicar, Remover atual, Deletar da lista
--- Corrigido na v6: imagem agora aplica corretamente na janela
-```
-
-### ProfileManager
-```lua
-Sec:ProfileManager()
--- Salva/carrega configs nomeadas (SunUI_Profile_NOME.json)
-```
-
-### NotifyPositionPicker
-```lua
-Sec:NotifyPositionPicker({ Name = "Posição das Notificações" })
--- Botões ↖ ↗ ↙ ↘ para o usuário escolher o canto
-```
-
-### DestroyButton ⭐ NOVO v6
-```lua
-Sec:DestroyButton({
-    Name        = "Fechar Hub",
-    Desc        = "Fecha o hub permanentemente",
-    ConfirmText = "Isso irá fechar o hub. Reexecute o script para reabrir.",
-})
--- Popup de confirmação com Confirmar / Cancelar antes de destruir
--- Salva configs automaticamente antes de fechar
-```
-
----
-
-## 🔔 Notificações
-
-```lua
-SunUI:Notify({
-    Title    = "Sucesso!",
-    Message  = "Config salva.",
-    Duration = 4,
-    Type     = "Success",  -- Info | Success | Warning | Error
-})
-
-SunUI:SetNotifyPosition("TopRight")  -- TopLeft | TopRight | BotLeft | BotRight
-Win:SetNotifyPosition("BotLeft")
-```
-
----
-
-## 💾 Config & Perfis
-
-```lua
-Win:EnableAutoSave()         -- carrega config ao abrir, salva a cada ~55s
-
-SunUI:SaveConfig()
-SunUI:LoadConfig()
-
-SunUI:SaveProfile("PvP")
-SunUI:LoadProfile("PvP")
-
-SunUI.Flags["MinhaFlag"]
-SunUI:SetFlag("MinhaFlag", true)
-SunUI:GetFlag("MinhaFlag")
-```
-
----
-
-## 🛠️ Extras
-
-### Watermark
-```lua
-local wm = Win:Watermark({ Text = "MeuHub v1.0", Position = UDim2.new(0,8,0,8) })
-wm:Set("MeuHub v1.0  |  ⚡ 60 FPS")
-wm:Hide()
-```
-
-### Stats Widget
-```lua
-local stats = Win:StatsWidget({ Position = UDim2.new(1,-120,0,8) })
--- FPS verde/amarelo/vermelho, Ping ms, Players online
-stats:Hide()
-```
-
-### Cursor Trail
-```lua
-Win:EnableCursorTrail({ Color = Color3.fromRGB(99,102,241), Size = 6, Life = 0.4 })
+Win:Tab(name, icon, badge?)          -- cria aba
+Win:Notify({...})                    -- notificação
+Win:Toast(msg, duration?)            -- toast mini
+Win:Debug(true/false)                -- overlay de debug
+Win:Export()                         -- retorna cópia dos Flags
+Win:ExportToFile(filename?)          -- salva JSON [v9]
+Win:SetTheme(name)                   -- hot-reload tema [v9]
+Win:WatchFlag(key, fn)               -- escuta flag [v9]
+Win:UnwatchFlag(key)                 -- remove escuta [v9]
+Win:SetNotifySounds({...})           -- sons por tipo [v9]
+Win:SetCompact(bool)                 -- toggle sidebar compacta [v9]
+Win:SetTitle(text)
+Win:FocusTab(name)
+Win:DisableTab(name)
+Win:EnableTab(name)
+Win:EnableAutoSave()
+Win:Watermark({Text, Position?})
+Win:StatsWidget({Position?})
+Win:EnableCursorTrail({Color?, Size?, Life?})
 Win:DisableCursorTrail()
-```
-
-### Accent em runtime
-```lua
-SunUI:SetAccentColor(Color3.fromRGB(239,68,68))             -- sólido
-SunUI:SetAccentColor(Color3.fromRGB(99,102,241), nil, true) -- RGB animado
+Win:StartJoinLeaveNotifier(opts)
+Win:StopJoinLeaveNotifier()
+Win:SetNotifyPosition(pos)
 ```
 
 ---
 
-## 🔑 Key System
+## API — SunUI (global)
 
 ```lua
-KeySystem = {
-    Title     = "Key System",
-    Sub       = "Entre no Discord para pegar a key",
-    Key       = "MINHAKEY123",                   -- string simples
-    Key       = {"KEY_FREE", "KEY_VIP"},         -- ou múltiplas
-    Note      = "discord.gg/xxx",
-    GetKeyUrl = "https://linktr.ee/seusite",     -- botão "Get Key" no popup (v6)
-}
+SunUI.Flags["NomeFlag"]             -- lê flag direto
+SunUI:SetFlag(key, value)           -- define flag + dispara OnFlagChanged e WatchFlag
+SunUI:GetFlag(key)                  -- lê flag
+SunUI:WatchFlag(key, fn)            -- [v9] escuta mudança de uma flag específica
+SunUI:UnwatchFlag(key)              -- [v9] remove escutas de uma flag
+SunUI.OnFlagChanged = function(k,v) -- callback global de flag
+SunUI:SetTheme(name)                -- [v9] hot-reload de tema
+SunUI:SetAccentColor(c1, c2?, rainbow?)
+SunUI:Export()                      -- retorna cópia dos Flags
+SunUI:ExportToFile(filename?)       -- [v9] salva JSON via writefile
+SunUI:SetNotifySounds({             -- [v9] sons por tipo
+    Info    = "soundId",
+    Success = "soundId",
+    Warning = "soundId",
+    Error   = "soundId",
+    ["*"]   = "soundId",            -- som padrão para todos
+})
+SunUI:Notify({Title, Message, Duration?, Type?, Persistent?})
+SunUI:Toast(msg, duration?)
+SunUI:Debug(enable)
+SunUI:SaveConfig() / SunUI:LoadConfig()
+SunUI:SaveProfile(name) / SunUI:LoadProfile(name)
+SunUI.Ranks = { [userId] = "👑 Owner" }
+SunUI._joinHistory                  -- array de eventos join/leave
+SunUI._joinFavorites                -- {[userId]=true}
+SunUI:AddJoinFavorite(userIdOrName)
+SunUI:RemoveJoinFavorite(userIdOrName)
+SunUI:GetJoinHistory()
+SunUI:CreatePlayerCountHUD({Position?})
 ```
-- Shake animado a cada tentativa errada
-- Bloqueia por **2s** após 3 erros seguidos
-- **Botão "Get Key"** abre link externo direto no browser do Roblox (v6)
-- Janela só abre após key correta
 
 ---
 
-## 🏗️ Comparativo
+## API — Tab
 
-| Feature | SunUI | Rayfield | LinoriaLib | Orion |
-|---|---|---|---|---|
-| Temas prontos | ✅ 6 | ✅ | ❌ | ❌ |
-| Tema 100% customizado | ✅ | ⚠️ parcial | ❌ | ❌ |
-| Key System com shake | ✅ | ✅ | ❌ | ❌ |
-| Notificações posicionáveis | ✅ 4 cantos | ❌ | ❌ | ❌ |
-| Background manager | ✅ corrigido v6 | ❌ | ❌ | ❌ |
-| Sistema de perfis nomeados | ✅ | ❌ | ❌ | ❌ |
-| PlayerDropdown c/ avatar | ✅ | ❌ | ❌ | ❌ |
-| Confirmação destrutiva | ✅ popup animado | ❌ | ❌ | ❌ |
-| Dropdowns sem clipping | ✅ v6 | ❌ | ❌ | ❌ |
-| Resize + duplo-clique reset | ✅ v6 | ❌ | ❌ | ❌ |
-| DestroyButton | ✅ v6 | ❌ | ❌ | ❌ |
-| Animação de erro no slider | ✅ | ❌ | ❌ | ❌ |
-| Cursor trail | ✅ | ❌ | ❌ | ❌ |
-| Stats widget integrado | ✅ | ❌ | ❌ | ❌ |
-| Watermark flutuante | ✅ | ❌ | ❌ | ❌ |
-| ColorPicker HSV+Hex+RGB | ✅ | ✅ | ✅ | ❌ |
-| Busca global de elementos | ✅ | ✅ | ❌ | ❌ |
-| Badge em abas | ✅ | ❌ | ❌ | ❌ |
-| Cooldown visual em botões | ✅ | ❌ | ❌ | ❌ |
-| Tooltip com delay+fade | ✅ | ⚠️ | ✅ | ❌ |
-| Xeno + gethui() nativo | ✅ | ⚠️ | ⚠️ | ❌ |
-| Todos callbacks em pcall | ✅ | ⚠️ | ⚠️ | ❌ |
+```lua
+local Tab = Win:Tab("Nome", "⚔", badge?)
+
+Tab:Section("NomeDaSeção")    -- cria seção normal → retorna Sec
+Tab:Group("NomeDoGrupo", open?) -- [v9] grupo colapsável → retorna GObj com :Section()
+Tab:SetBadge(n)               -- atualiza badge da aba
+```
+
+### Tab:Group — Exemplo
+
+```lua
+local G = Tab:Group("Configurações Gerais", true)
+local S1 = G:Section("Básico")
+S1:Label({Text="Use Tab:Section() para seções completas dentro do grupo."})
+S1:Separator()
+-- Para componentes completos (Toggle, Slider, etc.), use Tab:Section() normal
+-- O Group apenas agrupa visualmente seções num bloco colapsável
+```
 
 ---
 
-## 🐛 Resolução de Problemas
+## API — Sec (seção)
 
-**Janela não aparece:**
-- Confirme que o executor suporta `game:HttpGet`
-- Pressione a tecla de toggle (padrão: `RightShift`)
-- SunUI tenta `gethui()` → `cloneref(CoreGui)` → `CoreGui` → `PlayerGui` nessa ordem
+### Controles
 
-**Erro no F9:**
-- SunUI envolve **toda** criação de instância e **todos** os callbacks em `pcall`
-- Se aparecer erro, é no **seu código** dentro do callback — teste com `print(v)` primeiro
+```lua
+Sec:Toggle({Name, Desc?, Default, Flag, Tooltip?, Callback})
+    → {Set(v), Get(), Toggle(), AddDep(el, inv?)}
 
-**Config não salva:**
-- Executor precisa ter `writefile`/`readfile` — Xeno, Syn X, KRNL, Fluxus, Delta: ✅
-- Sem filesystem: lib não crasha, config simplesmente não persiste
+Sec:Slider({Name, Desc?, Min, Max, Default, Step?, Suffix?, Flag, Tooltip?, Callback})
+    → {Set(v), Get()}
 
-**Key System travado:**
-- Após 3 erros há cooldown de 2s — espere e tente novamente
-- A lib remove espaços automaticamente da key digitada
+Sec:Button({Name, Desc?, Icon?, Tooltip?, Cooldown?, Confirm?, ConfirmText?, Callback})
 
-**PlayerDropdown não carrega avatares:**
-- Normal em alguns jogos que bloqueiam ImageLabel com URLs externas
-- Os nomes ainda aparecem corretamente — só a foto fica em branco
+Sec:Dropdown({Name, Options, Default?, Multi?, Flag, Tooltip?, Callback})
+    → {Set(v), Get(), Refresh(newOpts)}
 
-**Dropdown não atualiza:**
-- Use `dd:Refresh({"Nova", "Lista"})` em vez de recriar o componente
+Sec:PlayerDropdown({Name, Multi?, IncludeLocal?, AutoUpdate?, Flag, Tooltip?, Callback})
+    → {Get(), GetName(), Clear(), Refresh()}
 
-**Dropdown ou ColorPicker atrás de outros elementos:**
-- Corrigido na v6 — painéis flutuam na ScreenGui com ZIndex 750
-- Se ainda ocorrer, verifique se há outro ScreenGui com ZIndex mais alto
+Sec:Keybind({Name, Default?, AllowNone?, Mode?, Flag, Tooltip?, OnPress?})
+    → {Get(), Set(key), Clear()}
+
+Sec:TextBox({Name, Placeholder?, Default?, Flag, Numeric?, Tooltip?, OnChanged?, OnSubmit?})
+    → {Set(v), Get()}
+
+Sec:ColorPicker({Name, Default?, Flag, Tooltip?, Callback})
+    → {Set(c3), Get()}
+
+Sec:ProgressBar({Name, Min?, Max?, Default?, Suffix?})
+    → {Set(v), Get()}
+```
+
+### Exibição
+
+```lua
+Sec:Label({Text, Color?, Bold?, Icon?})           → {Set(txt), SetColor(c)}
+Sec:Separator(text?)
+Sec:BannerAlert({Text, Type?, Dismissible?})      -- Info|Warning|Error|Success
+Sec:CodeBlock({Name?, Code, Language?, MaxLines?}) → {SetCode(code)}
+```
+
+### Input composto
+
+```lua
+Sec:ChipSelector({Name, Options, Multi?, Default?, Flag, Callback})   → {Get(), Set()}
+Sec:StarRating({Name, Max?, Default?, Flag, Callback})                 → {Get(), Set()}
+Sec:NumberInput({Name, Min?, Max?, Default?, Step?, Flag, Callback})   → {Get(), Set()}
+Sec:RangeSlider({Name, Min, Max, DefaultLow?, DefaultHigh?, Step?, Suffix?, Flag, Callback})
+    → {Get() → (low,high), Set(l,h)}
+Sec:TagInput({Name, Placeholder?, MaxTags?, Flag, Callback})           → {Get(), Add(t), Clear()}
+```
+
+### Tabelas / Listas
+
+```lua
+Sec:Table({Name?, Columns, Rows?, Striped?})   → {AddRow(r), SetRows(t), ClearRows()}
+Sec:LogViewer({Name?, MaxLines?, Filter?})
+    → {Log(msg,level?), Info(m), Warn(m), Error(m), Ok(m), Debug(m), Clear()}
+Sec:Accordion({Title, Content?, Open?})         → {Open(), Close(), IsOpen()}
+```
+
+### v9: Novos componentes
+
+```lua
+-- TimePicker — agenda callback para um horário
+Sec:TimePicker({Name, Hour, Minute, Repeat?, Flag, Tooltip?, Callback})
+    → {Get(), Set(h,m), Activate(), Deactivate()}
+-- Exemplo:
+Sec:TimePicker({
+    Name="Auto Collect", Hour=9, Minute=30, Repeat=true,
+    Callback=function(t) print("São "..t.Hour..":"..t.Minute) end,
+})
+
+-- ImagePreview — imagem por AssetId
+Sec:ImagePreview({Name?, AssetId?, Caption?, Height?, Clickable?, OnClick?})
+    → {SetImage(id), SetCaption(txt)}
+
+-- AvatarCard — card de jogador
+Sec:AvatarCard({
+    Name?,
+    UserId?,    -- ou Username?
+    Stats = { {Label="Kills", Value="42"}, ... },
+    Buttons = { {Text="Teleport", Callback=function(userId, name) end}, ... },
+})
+→ {Refresh(newUserId)}
+
+-- FavoritesList — lista de jogadores favoritos persistida
+Sec:FavoritesList({Name?, MaxFavorites?, Flag?, OnSelect?})
+    → {Get(), Add(name), Remove(name), Clear()}
+```
+
+### Hub
+
+```lua
+Sec:ToggleSlider({...})        -- Toggle + Slider combinados
+Sec:AccentPicker({Name?, Tooltip?})
+Sec:ProfileManager()
+Sec:BackgroundManager()
+Sec:NotifyPositionPicker({Name?})
+Sec:DestroyButton({Name?, Desc?, ConfirmText?, Countdown?})
+    -- Countdown=3 → conta regressiva de 3s antes de habilitar "Confirmar" [v9]
+Sec:JoinLeaveConfig({Name?})
+Sec:ThirdPersonCamera({DefaultDist?, MaxDist?, DefaultSens?, DefaultFOV?, DefaultShoulder?, LockY?, OnToggle?})
+    → {SetEnabled(v), SetDistance(n), SetSensitivity(n), SetFOV(n), SetShoulder(-1|0|1)}
+```
 
 ---
 
-## 📝 Changelog
+## JoinLeave Notifier com Filtro (v9)
 
-### v6.0
-- Dropdowns e PlayerDropdown flutuam acima do hub (sem clipping pelo ScrollingFrame)
-- ColorPicker renderiza acima de tudo (ZIndex 750, parented to screen)
-- Janela voltou ao tamanho padrão 720×500
-- Resize handle: arrastar redimensiona • duplo clique reseta ao tamanho padrão
-- Key System: botão "Get Key" (`GetKeyUrl`) abre link externo no browser
-- `Sec:DestroyButton({...})` — fecha o hub com confirmação
-- BackgroundManager: corrigido bug onde a imagem não era aplicada
-- Intro: overlay cobre a tela toda sem gap no topo
+```lua
+Win:StartJoinLeaveNotifier({
+    -- Filtro opcional:
+    Filter = function(player)          -- função: retorna true para notificar
+        return player.Name:sub(1,1)~="#"   -- ignora guests
+    end,
+    -- ou padrão Lua:
+    -- Filter = "^Admin",              -- só jogadores cujo nome começa com "Admin"
 
-### v5.5
-- Arquitetura MainWrap + Main (borda não clipada pelo conteúdo)
-- Sombra com referência local para hide/show correto no toggle
-- `_guiVisible` boolean — toggle key funciona de qualquer estado
-- Tema aplicado em tempo real sem reiniciar a janela
-- Watermark/Stats com `Hide()`/`Show()` sem destruir
-- DisplayName + sistema de Ranks na sidebar
-- Versão exibida na titlebar
-
-### v5.4
-- PlayerDropdown com avatar, DisplayName e @username
-- `Sec:Separator(texto?)` com e sem título
-- `Sec:ToggleSlider({...})` combinado
-- Animação de erro no Slider (flash vermelho + shake)
-
-### v5.3
-- Key System com shake em key errada
-- Notificações posicionáveis nos 4 cantos
-- BackgroundManager (Asset ID / URL)
-- ProfileManager, AccentPicker, CursorTrail
-- Stats Widget (FPS/Ping/Players)
+    RejoinWindow = 60,   -- segundos para considerar como rejoin
+    OnJoin  = function(player, isFriend, isFav, isRejoin) end,
+    OnLeave = function(player, isFriend, isFav) end,
+})
+```
 
 ---
 
-## 📄 Licença
+## Sons de Notificação (v9)
 
-MIT — livre para usar, modificar e distribuir.  
-Créditos apreciados mas não obrigatórios. ☀
+```lua
+SunUI:SetNotifySounds({
+    Info    = "6518811702",
+    Success = "9120386436",
+    Warning = "5997765300",
+    Error   = "1375393548",
+    ["*"]   = "123456789",   -- som padrão se tipo não tiver som específico
+})
+-- Ou via Win:
+Win:SetNotifySounds({ Success = "id" })
+```
+
+---
+
+## WatchFlag (v9)
+
+```lua
+-- Escuta uma flag específica (mais eficiente que OnFlagChanged para muitas flags)
+SunUI:WatchFlag("AimbotOn", function(value)
+    print("Aimbot mudou para:", value)
+end)
+
+-- Remove todos os watchers de uma flag
+SunUI:UnwatchFlag("AimbotOn")
+
+-- OnFlagChanged ainda funciona (global, para todas as flags)
+SunUI.OnFlagChanged = function(key, value)
+    print(key, "=", value)
+end
+```
+
+---
+
+## Animações Opcionais (v9)
+
+```lua
+-- Desativa todas as animações (partículas, shimmer, scanline, countdown)
+local Win = SunUI:CreateWindow({
+    Animations = false,  -- padrão: true
+    ...
+})
+
+-- Com Animations=true (padrão):
+-- • Toggle ativado: partículas explodem do card
+-- • Salvar perfil: shimmer desliza + multi-partículas no botão
+-- • Intro: scanline desliza da tela
+-- • DestroyButton com Countdown=N: conta regressiva no botão confirmar
+```
+
+---
+
+## Scale Automático (v9)
+
+```lua
+-- Escala automática pela resolução da tela (útil para monitores 4K ou pequenos)
+local Win = SunUI:CreateWindow({
+    Scale = "auto",   -- calcula baseado em 1366x768 como base
+    ...
+})
+
+-- Escala manual (0.5 a 2.0)
+local Win = SunUI:CreateWindow({
+    Scale = 0.85,
+    ...
+})
+```
+
+---
+
+## Sidebar Compacta (v9)
+
+```lua
+-- Começa compacta (só ícones, sem textos)
+local Win = SunUI:CreateWindow({
+    CompactSidebar = true,
+    ...
+})
+
+-- Ou toggle em runtime:
+Win:SetCompact(true)   -- ativa compacto
+Win:SetCompact(false)  -- volta ao normal
+-- O botão ◀/▶ no canto inferior da sidebar também faz o toggle
+```
+
+---
+
+## Mobile (v9)
+
+```lua
+-- SunUI detecta TouchEnabled automaticamente
+-- Quando em dispositivo touch:
+--   • Janela ligeiramente maior (+60 largura, +40 altura)
+--   • Ripple responde a Touch além de MouseButton1
+--   • Draggable e sliders funcionam com touch
+-- Não precisa configurar nada — acontece automaticamente
+```
+
+---
+
+## Organização de Abas — Boas Práticas
+
+### Estrutura recomendada
+```
+├── Aba "Combat" (⚔)
+│   ├── Section "Aimbot"
+│   │   ├── Toggle: Ativar
+│   │   ├── Slider: FOV
+│   │   └── Slider: Smoothness
+│   └── Section "ESP"
+│       ├── Toggle: Players
+│       └── ColorPicker: Cor ESP
+├── Aba "Farm" (🌾)
+│   └── Section "Auto Farm"
+├── Aba "Misc" (⚙)
+│   ├── Section "Configurações"
+│   │   ├── AccentPicker
+│   │   ├── ProfileManager
+│   │   └── NotifyPositionPicker
+│   └── Section "Hub"
+│       └── DestroyButton
+```
+
+### Dicas de performance
+- Use `Flag=` em todos os controles para salvar/carregar config automaticamente
+- `Win:EnableAutoSave()` carrega config salva ao iniciar
+- Use `Tab:Group()` para agrupar seções relacionadas e reduzir scroll
+- Não crie mais de 50 elementos por aba — separe em abas
+- Use `SunUI:WatchFlag()` ao invés de `OnFlagChanged` quando possível (mais eficiente)
+- `Sec:Accordion` esconde seções raramente usadas, mantendo a aba limpa
+- Prefira `Sec:LogViewer` a `print()` para debug in-game
+
+---
+
+## Compatibilidade com Executors
+
+| Executor | Status |
+|----------|--------|
+| Xeno v3+ | ✅ (usa `gethui()`) |
+| Fluxus | ✅ |
+| Delta | ✅ |
+| Synapse X | ✅ (usa `cloneref`) |
+| KRNL | ✅ |
+| Script-Ware | ✅ |
+| Outros | ✅ (fallback PlayerGui) |
+
+---
+
+## Changelog
+
+### v9.0
+- 3 temas novos: Midnight, Sakura, Matrix
+- Hot-reload via `SunUI:SetTheme()` e `Win:SetTheme()` (sem recriar janela)
+- Sidebar compacta `CompactSidebar=true` + botão ◀/▶ + `Win:SetCompact()`
+- Scroll automático de abas com setas ▲▼ quando há overflow
+- `Scale="auto"` e `Scale=number` — redimensionamento automático por tela
+- Suporte a mobile (TouchEnabled detectado, janela/touch adaptados)
+- `Animations=true/false` — partículas no toggle, shimmer no perfil, scanline no intro, countdown no DestroyButton
+- Sons de notificação: `SunUI:SetNotifySounds({Success="id", ...})`
+- `SunUI:WatchFlag(key, fn)` e `SunUI:UnwatchFlag(key)`
+- `SunUI:ExportToFile(filename)` — salva snapshot JSON
+- `Sec:TimePicker` — agenda callbacks por horário
+- `Sec:ImagePreview` — imagem por AssetId
+- `Sec:AvatarCard` — card de jogador com stats e botões
+- `Sec:FavoritesList` — lista persistente de favoritos
+- `Tab:Group` — conjunto colapsável de seções
+- Filtro (`Filter=fn` ou `Filter="padrão"`) no StartJoinLeaveNotifier
+- ThemeRefs — frames registrados atualizam automaticamente no hot-reload
+- `Win:SetCompact()`, `Win:SetTheme()`, `Win:WatchFlag()`, `Win:ExportToFile()`, `Win:SetNotifySounds()`
+
+### v8.0
+- 10 novos componentes: Table, ChipSelector, StarRating, NumberInput, RangeSlider, CodeBlock, BannerAlert, TagInput, LogViewer, Accordion
+- Key System com tiers e contador visual
+- Keybind com AllowNone + ESC para limpar
+- Notificações: fila inteligente (limite 4), agrupamento, persistente
+- Join/Leave: histórico, favoritos, rejoin, contador HUD
+- Third Person: shoulder cam, FOV configurável
+- Win:Toast, Win:Debug, Win:Export, Win:SetTitle, Win:FocusTab, DisableTab, EnableTab
+- SunUI.OnFlagChanged, SunUI:Export, SunUI:Debug, SunUI:Toast
+
+### v7.0
+- ThirdPersonCamera nativa
+- JoinLeave Notifier com prioridade de amigos
+- Mouse unlock/lock automático no toggle
+- Watermark posicionado abaixo-esquerda
+- Melhorias visuais gerais
+
+---
+
+*SunUI v9.0 — feito com ☀ por Sun*
