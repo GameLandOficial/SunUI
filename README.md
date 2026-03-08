@@ -2,8 +2,10 @@
 
 # ☀ SunUI v9.0 — Executor UI Library
 
-> Universal • Design Lost-Hub inspired • Executor Compatible  
-> Melhor que Rayfield, LinoriaLib, Kavo, Orion e FireMax
+![versão](https://img.shields.io/badge/versão-9.0.0-blueviolet?style=for-the-badge)
+![status](https://img.shields.io/badge/status-estável-brightgreen?style=for-the-badge)
+![lua](https://img.shields.io/badge/Luau-compatible-orange?style=for-the-badge)
+![executors](https://img.shields.io/badge/Xeno%20%7C%20Fluxus%20%7C%20KRNL%20%7C%20Synapse-supported-blue?style=for-the-badge)
 
 ```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/GameLandOficial/SunUI/main/SunUI.lua"))()
