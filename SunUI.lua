@@ -1,7 +1,7 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
 ║   ☀  SunUI  •  v9.0  •  RELEASE EDITION                            ║
-║   Universal  •  Design inspired  •  Executor Compatible              ║
+║   Universal  •  Design Lost-Hub inspired  •  Executor Compatible    ║
 ║                                                                      ║
 ║   DESTAQUES v9 (tudo de v8 + novidades):                            ║
 ║   ✦ 9 temas: Dark, Amethyst, Crimson, Neon, Emerald, Light,        ║
@@ -6308,69 +6308,3 @@ function SunUI:Toast(msg,duration)
 end
 
 return SunUI
-
--- ════════════════════════════════════════════════
--- v9: API PÚBLICA EXTRA
--- ════════════════════════════════════════════════
-
--- Hot-reload de tema sem recriar a janela
-function SunUI:SetTheme(themeName)
-    local newT = self.Themes[themeName]
-    if not newT then return end
-    self.Theme = newT
-    for _,s in ipairs(self._borders) do
-        if s and s.Parent then pcall(function() U.Tween(s,{Color=newT.Accent},0.32) end) end
-    end
-    for _,a in ipairs(self._accents) do
-        if a and a.o and a.o.Parent then
-            pcall(function() U.Tween(a.o,{[a.p]=newT.Accent},0.32) end)
-        end
-    end
-    for _,ref in ipairs(self._themeRefs or {}) do
-        if ref.o and ref.o.Parent then
-            pcall(function() U.Tween(ref.o,{[ref.p]=newT[ref.k]},0.32) end)
-        end
-    end
-    self:Notify({Title="Tema: "..themeName,Message="Hot-reload aplicado!",Type="Success",Duration=2})
-end
-
--- Escuta mudanças numa flag específica
-function SunUI:WatchFlag(key, fn)
-    if type(fn)~="function" then return end
-    if not self._flagWatchers then self._flagWatchers={} end
-    if not self._flagWatchers[key] then self._flagWatchers[key]={} end
-    table.insert(self._flagWatchers[key], fn)
-end
-function SunUI:UnwatchFlag(key)
-    if self._flagWatchers then self._flagWatchers[key]=nil end
-end
-
--- Exporta flags para arquivo JSON via executor
-function SunUI:ExportToFile(filename)
-    filename=tostring(filename or "SunUI_Export.json")
-    local copy={}
-    for k,v in pairs(self.Flags) do copy[k]=v end
-    local ok,json=pcall(function()
-        if HttpService then return HttpService:JSONEncode(copy) end
-        return tostring(copy)
-    end)
-    local data=ok and json or "{}"
-    local written=false
-    pcall(function()
-        if writefile then writefile(filename,data); written=true end
-    end)
-    self:Notify({
-        Title=written and "Export salvo!" or "Export (sem writefile)",
-        Message=written and filename or "Executor sem permissão de escrita.",
-        Type=written and "Success" or "Warning", Duration=4,
-    })
-    return copy
-end
-
--- Define sons para cada tipo de notificação
-function SunUI:SetNotifySounds(sounds)
-    if type(sounds)=="table" then
-        if not self._notifySounds then self._notifySounds={} end
-        for k,v in pairs(sounds) do self._notifySounds[k]=tostring(v) end
-    end
-end
