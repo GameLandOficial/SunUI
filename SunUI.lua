@@ -1,7 +1,7 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
 ║   ☀  SunUI  •  v10.0  •  RELEASE EDITION                           ║
-║   Universal  •  Design Lost-Hub inspired  •  Executor Compatible    ║
+║   Universal  •  Design inspired  •  Executor Compatible    ║
 ║                                                                      ║
 ║   DESTAQUES v9 (tudo de v8 + novidades):                            ║
 ║   ✦ 9 temas: Dark, Amethyst, Crimson, Neon, Emerald, Light,        ║
@@ -2262,12 +2262,12 @@ function SunUI:CreateWindow(opts)
     -- ── Sombra (referência local para hide/show no toggle)
     local Shadow=U.New("ImageLabel",{
         AnchorPoint=Vector2.new(0.5,0.5),
-        Size=UDim2.new(0,W+110,0,H+110),
+        Size=UDim2.new(0,W+140,0,H+140),
         Position=UDim2.new(0.5,0,0.5,0),
         BackgroundTransparency=1,
         Image="rbxassetid://6014261993",
         ImageColor3=Color3.new(0,0,0),
-        ImageTransparency=0.45,
+        ImageTransparency=0.35,
         ScaleType=Enum.ScaleType.Slice,
         SliceCenter=Rect.new(49,49,450,450),
         ZIndex=0,
@@ -2283,7 +2283,7 @@ function SunUI:CreateWindow(opts)
         BackgroundColor3=T.Bg,
         ClipsDescendants=false,ZIndex=1,
     },Screen)
-    U.Corner(12,MainWrap)
+    U.Corner(16,MainWrap)
     local mainStroke=U.Stroke(T.Accent,2,MainWrap); TrackBorder(mainStroke)
     -- Main interno (com clip para conteúdo não vazar)
     local Main=U.New("Frame",{
@@ -2292,7 +2292,7 @@ function SunUI:CreateWindow(opts)
         BackgroundColor3=T.Bg,
         ClipsDescendants=true,ZIndex=1,
     },MainWrap)
-    U.Corner(12,Main)
+    U.Corner(16,Main)
     TrackTheme(MainWrap,"BackgroundColor3","Bg")
     TrackTheme(Main,"BackgroundColor3","Bg")
 
@@ -2313,10 +2313,8 @@ function SunUI:CreateWindow(opts)
         pcall(function() BgOv.BackgroundTransparency=hasImg and 0.55 or 0 end)
     end
 
-    -- Versão guardada para usar na titlebar
-
     -- ── Titlebar
-    local TH=54
+    local TH=52
     local TBar=U.New("Frame",{
         Size=UDim2.new(1,0,0,TH),BackgroundColor3=T.TitleBar,ZIndex=5,
     },Main)
@@ -2330,66 +2328,60 @@ function SunUI:CreateWindow(opts)
         BackgroundColor3=T.Border,ZIndex=5,
     },TBar)
 
-    -- Logo
+    -- Logo quadrado arredondado
     local logoF=U.New("Frame",{
-        Size=UDim2.new(0,32,0,32),Position=UDim2.new(0,12,0.5,-16),
+        Size=UDim2.new(0,34,0,34),Position=UDim2.new(0,10,0.5,-17),
         BackgroundColor3=T.Accent,ZIndex=7,
     },TBar)
-    U.Corner(8,logoF); TrackAccent(logoF,"BackgroundColor3")
+    U.Corner(9,logoF); TrackAccent(logoF,"BackgroundColor3")
     U.New("TextLabel",{
         Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
         Text="☀",TextColor3=Color3.new(1,1,1),
-        Font=Enum.Font.GothamBlack,TextSize=17,ZIndex=8,
+        Font=Enum.Font.GothamBlack,TextSize=18,ZIndex=8,
     },logoF)
 
+    -- Título e subtitle (verticalmente centralizados, sem colidir com version)
+    local hasSubtitle = subtitle and subtitle~=""
+    local titleY = hasSubtitle and 8 or 16
     local titleLbl=U.New("TextLabel",{
-        Size=UDim2.new(0,230,0,18),Position=UDim2.new(0,52,0,8),
+        Size=UDim2.new(0,240,0,18),Position=UDim2.new(0,52,0,titleY),
         BackgroundTransparency=1,Text=title,
         TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=13,
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
     },TBar)
-
-    -- Linha subtitle + versão lado a lado, sem sobreposição
-    local hasSubtitle = subtitle and subtitle~=""
-    local hasVersion  = version ~= nil
-
     if hasSubtitle then
         U.New("TextLabel",{
-            Size=UDim2.new(0,180,0,13),Position=UDim2.new(0,52,0,27),
-            BackgroundTransparency=1,
-            Text=subtitle,
+            Size=UDim2.new(0,220,0,12),Position=UDim2.new(0,52,0,27),
+            BackgroundTransparency=1,Text=subtitle,
             TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=10,
             TextXAlignment=Enum.TextXAlignment.Left,ZIndex=7,
         },TBar)
     end
 
-    if hasVersion then
+    -- Version badge: pílula pequena colada na borda inferior esquerda da titlebar
+    -- Fica abaixo da linha accent, grudado no canto esquerdo (como etiqueta)
+    if version then
         local verStr = "v"..tostring(version):gsub("^v","")
-        -- Se há subtitle: badge fica à direita do subtitle; se não: fica onde estava subtitle
-        local verY = hasSubtitle and 26 or 27
         local verBadge=U.New("Frame",{
-            Size=UDim2.new(0,0,0,13),
-            Position=UDim2.new(0,52,0,verY),
+            Size=UDim2.new(0,0,0,14),
+            Position=UDim2.new(0,52,1,-14),  -- borda inferior, alinhado ao título
             BackgroundColor3=T.AccentDim,ZIndex=7,
         },TBar)
-        U.Corner(4,verBadge); TrackAccent(verBadge,"BackgroundColor3")
-        U.Pad(0,0,5,5,verBadge)
+        U.Corner(3,verBadge); TrackAccent(verBadge,"BackgroundColor3")
+        U.Pad(0,0,6,6,verBadge)
         local verLbl=U.New("TextLabel",{
             Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
-            Text=verStr,
-            TextColor3=T.TextAccent,Font=Enum.Font.GothamBold,TextSize=8,
-            TextXAlignment=Enum.TextXAlignment.Left,ZIndex=8,
+            Text=verStr,TextColor3=T.TextAccent,
+            Font=Enum.Font.GothamBold,TextSize=8,
+            TextXAlignment=Enum.TextXAlignment.Center,ZIndex=8,
         },verBadge)
         TrackAccent(verLbl,"TextColor3")
         task.spawn(function()
-            task.wait(0.05)
+            task.wait(0.08)
             if verLbl and verBadge and verBadge.Parent then
-                local tw=verLbl.TextBounds.X+12
-                U.Tween(verBadge,{Size=UDim2.new(0,tw,0,13)},0.15)
-                -- Se há subtitle: posiciona badge à direita do texto subtitle
-                if hasSubtitle then
-                    local subW = math.min(#subtitle*6,180)
-                    verBadge.Position=UDim2.new(0,52+subW+6,0,verY)
+                local tw=verLbl.TextBounds.X
+                if tw>0 then
+                    verBadge.Size=UDim2.new(0,tw+14,0,14)
                 end
             end
         end)
@@ -2561,8 +2553,12 @@ function SunUI:CreateWindow(opts)
         BackgroundColor3=T.Sidebar,ZIndex=3,
     },Main)
     TrackTheme(Side,"BackgroundColor3","Sidebar")
-    -- Divisor lateral
-    local sideLine=U.New("Frame",{Size=UDim2.new(0,1,1,0),Position=UDim2.new(1,0,0,0),BackgroundColor3=T.Border,ZIndex=4},Side)
+
+    -- Divisor lateral (linha fina)
+    local sideLine=U.New("Frame",{
+        Size=UDim2.new(0,1,1,0),Position=UDim2.new(1,0,0,0),
+        BackgroundColor3=T.Border,ZIndex=4,
+    },Side)
     TrackTheme(sideLine,"BackgroundColor3","Border")
 
     -- Faixa accent topo sidebar
@@ -2571,7 +2567,36 @@ function SunUI:CreateWindow(opts)
     },Side)
     TrackAccent(sideTop,"BackgroundColor3")
 
-    -- Avatar com anel glow
+    -- ── Handle de toggle no meio da linha divisória
+    -- Seta ◀ quando expandida, ▶ quando compacta — anima na troca
+    local handleBtn=U.New("TextButton",{
+        Size=UDim2.new(0,14,0,36),
+        Position=UDim2.new(1,-1,0.5,-18),
+        BackgroundColor3=T.SurfaceHigh,
+        Text=isCompact and "▶" or "◀",
+        TextColor3=T.TextMuted,
+        Font=Enum.Font.GothamBold,TextSize=8,
+        ZIndex=8,
+    },Side)
+    U.Corner(4,handleBtn)
+    U.Stroke(T.Border,1,handleBtn)
+    handleBtn.MouseEnter:Connect(function()
+        U.Tween(handleBtn,{BackgroundColor3=T.AccentDim,TextColor3=T.Text},0.12)
+    end)
+    handleBtn.MouseLeave:Connect(function()
+        U.Tween(handleBtn,{BackgroundColor3=T.SurfaceHigh,TextColor3=T.TextMuted},0.12)
+    end)
+
+    -- ── Seção de perfil no topo da sidebar
+    local PROFILE_H = 68
+    local profileArea=U.New("Frame",{
+        Size=UDim2.new(1,0,0,PROFILE_H),Position=UDim2.new(0,0,0,2),
+        BackgroundTransparency=1,ZIndex=4,
+    },Side)
+
+    -- ── Seção de perfil no topo da sidebar (ORIGINAL)
+    local PROFILE_H = 68
+    -- Avatar com anel glow (44px, posição original)
     local avRing=U.New("Frame",{Size=UDim2.new(0,44,0,44),Position=UDim2.new(0,10,0,12),BackgroundColor3=T.Accent,ZIndex=4},Side)
     U.Corner(999,avRing); TrackAccent(avRing,"BackgroundColor3")
     local avRing2=U.New("Frame",{Size=UDim2.new(1,-3,1,-3),Position=UDim2.new(0,1.5,0,1.5),BackgroundColor3=T.Sidebar,ZIndex=4},avRing)
@@ -2599,14 +2624,15 @@ function SunUI:CreateWindow(opts)
         TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,
         TextTruncate=Enum.TextTruncate.AtEnd,
     },Side)
+
     -- Rank badge
-    local rankName = "SunUI v9.0"
+    local rankName = version and ("v"..tostring(version):gsub("^v","")) or "SunUI"
     if SunUI.Ranks and type(SunUI.Ranks)=="table" then
         local r = SunUI.Ranks[LP.Name] or SunUI.Ranks[tostring(LP.UserId)]
         if r then rankName = tostring(r) end
     end
     local rankBadge=U.New("Frame",{
-        Size=UDim2.new(0,0,0,14),Position=UDim2.new(0,62,0,44),
+        Size=UDim2.new(0,60,0,14),Position=UDim2.new(0,62,0,44),
         BackgroundColor3=T.AccentDim,ZIndex=5,
     },Side)
     U.Corner(4,rankBadge); TrackAccent(rankBadge,"BackgroundColor3")
@@ -2618,45 +2644,65 @@ function SunUI:CreateWindow(opts)
     },rankBadge)
     TrackAccent(rankLbl2,"TextColor3")
     task.spawn(function()
-        task.wait(0.05)
+        task.wait(0.15)
         if rankLbl2 and rankBadge and rankBadge.Parent then
-            U.Tween(rankBadge,{Size=UDim2.new(0,rankLbl2.TextBounds.X+12,0,14)},0.15)
+            local tw=rankLbl2.TextBounds.X
+            if tw>0 then rankBadge.Size=UDim2.new(0,tw+14,0,14) end
         end
     end)
 
-    -- Separador
-    U.New("Frame",{Size=UDim2.new(1,-14,0,1),Position=UDim2.new(0,7,0,64),BackgroundColor3=T.Border,ZIndex=4},Side)
+    -- Linha separadora
+    local profSep=U.New("Frame",{
+        Size=UDim2.new(1,-14,0,1),Position=UDim2.new(0,7,0,64),
+        BackgroundColor3=T.Border,ZIndex=4,
+    },Side)
+    TrackTheme(profSep,"BackgroundColor3","Border")
 
-    -- v9: Scroll de abas com setas automáticas
+    -- ── Botão de scroll UP (fixo, sempre visível quando necessário)
+    local SCROLL_BTN_H = 22
+    local scrollUpBtn=U.New("TextButton",{
+        Size=UDim2.new(1,-8,0,SCROLL_BTN_H),
+        Position=UDim2.new(0,4,0,PROFILE_H+6),
+        BackgroundColor3=T.SurfaceHigh,BackgroundTransparency=0.6,
+        Text="▲",TextColor3=T.TextMuted,
+        Font=Enum.Font.GothamBold,TextSize=9,ZIndex=7,Visible=false,
+    },Side)
+    U.Corner(6,scrollUpBtn)
+    scrollUpBtn.MouseEnter:Connect(function() U.Tween(scrollUpBtn,{BackgroundTransparency=0.1,TextColor3=T.Text},0.1) end)
+    scrollUpBtn.MouseLeave:Connect(function() U.Tween(scrollUpBtn,{BackgroundTransparency=0.6,TextColor3=T.TextMuted},0.1) end)
+
+    -- ── ScrollingFrame das abas
+    local SCROLL_TOP = PROFILE_H+6
+    local SCROLL_BOT = 56  -- espaço pro botão down + discord
     local SideScroll=U.New("ScrollingFrame",{
-        Size=UDim2.new(1,0,1,-100),Position=UDim2.new(0,0,0,68),
+        Size=UDim2.new(1,0,1,-SCROLL_TOP-SCROLL_BOT),
+        Position=UDim2.new(0,0,0,SCROLL_TOP),
         BackgroundTransparency=1,ScrollBarThickness=2,
         ScrollBarImageColor3=T.Scrollbar,ZIndex=4,
     },Side)
     local SideList=U.List(2,Enum.HorizontalAlignment.Center,SideScroll)
     U.Pad(4,8,5,5,SideScroll); U.AutoCanvas(SideScroll,SideList,10)
 
-    -- Setas de scroll (aparecem automaticamente quando há overflow)
-    local scrollUpBtn=U.New("TextButton",{
-        Size=UDim2.new(1,-8,0,18),Position=UDim2.new(0,4,0,68),
-        BackgroundColor3=T.SurfaceHigh,BackgroundTransparency=0.7,
-        Text="▲",TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=9,
-        ZIndex=7,Visible=false,
-    },Side)
+    -- ── Botão de scroll DOWN (fixo acima do discord)
     local scrollDnBtn=U.New("TextButton",{
-        Size=UDim2.new(1,-8,0,18),Position=UDim2.new(0,4,1,-52),
-        BackgroundColor3=T.SurfaceHigh,BackgroundTransparency=0.7,
-        Text="▼",TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=9,
-        ZIndex=7,Visible=false,
+        Size=UDim2.new(1,-8,0,SCROLL_BTN_H),
+        Position=UDim2.new(0,4,1,-SCROLL_BOT+2),
+        BackgroundColor3=T.SurfaceHigh,BackgroundTransparency=0.6,
+        Text="▼",TextColor3=T.TextMuted,
+        Font=Enum.Font.GothamBold,TextSize=9,ZIndex=7,Visible=false,
     },Side)
-    U.Corner(5,scrollUpBtn); U.Corner(5,scrollDnBtn)
+    U.Corner(6,scrollDnBtn)
+    scrollDnBtn.MouseEnter:Connect(function() U.Tween(scrollDnBtn,{BackgroundTransparency=0.1,TextColor3=T.Text},0.1) end)
+    scrollDnBtn.MouseLeave:Connect(function() U.Tween(scrollDnBtn,{BackgroundTransparency=0.6,TextColor3=T.TextMuted},0.1) end)
+
     scrollUpBtn.MouseButton1Click:Connect(function()
         pcall(function() SideScroll.CanvasPosition=Vector2.new(0,math.max(0,SideScroll.CanvasPosition.Y-44)) end)
     end)
     scrollDnBtn.MouseButton1Click:Connect(function()
         pcall(function() SideScroll.CanvasPosition=Vector2.new(0,SideScroll.CanvasPosition.Y+44) end)
     end)
-    -- Mostra setas quando lista ultrapassa área visível
+
+    -- Mostra setas quando há overflow
     local _lastContentH=0
     local function UpdateScrollArrows()
         local ch=SideList.AbsoluteContentSize.Y
@@ -2666,27 +2712,28 @@ function SunUI:CreateWindow(opts)
         pcall(function()
             scrollUpBtn.Visible=overflow
             scrollDnBtn.Visible=overflow
-            SideScroll.Size=overflow and UDim2.new(1,0,1,-120) or UDim2.new(1,0,1,-100)
-            SideScroll.Position=overflow and UDim2.new(0,0,0,90) or UDim2.new(0,0,0,68)
+            if overflow then
+                SideScroll.Position=UDim2.new(0,0,0,SCROLL_TOP+SCROLL_BTN_H+2)
+                SideScroll.Size=UDim2.new(1,0,1,-SCROLL_TOP-SCROLL_BTN_H-2-SCROLL_BOT)
+            else
+                SideScroll.Position=UDim2.new(0,0,0,SCROLL_TOP)
+                SideScroll.Size=UDim2.new(1,0,1,-SCROLL_TOP-SCROLL_BOT)
+            end
         end)
     end
     SideList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(UpdateScrollArrows)
 
-    -- v9: Botão toggle sidebar compacta
-    local compactBtn=U.New("TextButton",{
-        Size=UDim2.new(1,-8,0,24),Position=UDim2.new(0,4,1,-56),
-        BackgroundColor3=T.SurfaceHigh,BackgroundTransparency=0.55,
-        Text=isCompact and "▶" or "◀",TextColor3=T.TextMuted,
-        Font=Enum.Font.GothamBold,TextSize=10,ZIndex=6,
+    -- Linha separadora acima do discord
+    U.New("Frame",{
+        Size=UDim2.new(1,-8,0,1),Position=UDim2.new(0,4,1,-SCROLL_BOT+1),
+        BackgroundColor3=T.Border,ZIndex=4,
     },Side)
-    U.Corner(7,compactBtn)
-    compactBtn.MouseEnter:Connect(function() U.Tween(compactBtn,{BackgroundTransparency=0.15,TextColor3=T.Text},0.12) end)
-    compactBtn.MouseLeave:Connect(function() U.Tween(compactBtn,{BackgroundTransparency=0.55,TextColor3=T.TextMuted},0.12) end)
+    TrackTheme(U.New("Frame",{Size=UDim2.new(0,0,0,0),BackgroundTransparency=1},Side),"BackgroundColor3","Border")
 
     -- Discord button
     if discordUrl then
         local dcB=U.New("TextButton",{
-            Size=UDim2.new(1,-12,0,26),Position=UDim2.new(0,6,1,-28),
+            Size=UDim2.new(1,-12,0,26),Position=UDim2.new(0,6,1,-30),
             BackgroundColor3=Color3.fromRGB(88,101,242),
             Text="⌁ Discord",TextColor3=Color3.new(1,1,1),
             Font=Enum.Font.GothamBold,TextSize=11,ZIndex=5,
@@ -2704,7 +2751,41 @@ function SunUI:CreateWindow(opts)
     },Main)
     TrackTheme(Content,"BackgroundColor3","Surface")
 
-    -- v9: Toggle sidebar compacta — anima Side + Content juntos
+    -- ── Tooltip lateral para abas no modo compacto
+    local _sideTooltip=nil
+    local function ShowSideTooltip(text, absPos)
+        if _sideTooltip then pcall(function() _sideTooltip:Destroy() end) end
+        if not isCompact or not text or text=="" then return end
+        local tw=math.max(#text*7+16, 60)
+        local tip=U.New("Frame",{
+            Size=UDim2.new(0,tw,0,24),
+            Position=UDim2.new(0,SW_COMPACT+6,0,0),
+            BackgroundColor3=T.SurfaceHigh,ZIndex=200,
+        },Main)
+        U.Corner(6,tip); U.Stroke(T.Accent,1,tip)
+        U.New("TextLabel",{
+            Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+            Text=text,TextColor3=T.Text,
+            Font=Enum.Font.GothamBold,TextSize=10,ZIndex=201,
+        },tip)
+        -- Posicionar verticalmente no Y da aba (relativo ao Main)
+        if absPos then
+            local mainAbs = Main.AbsolutePosition
+            local relY = absPos.Y - mainAbs.Y
+            tip.Position=UDim2.new(0,SW_COMPACT+6,0,relY+8)
+        end
+        _sideTooltip=tip
+        U.Tween(tip,{BackgroundTransparency=0},0.08)
+    end
+    local function HideSideTooltip()
+        if _sideTooltip then
+            local t=_sideTooltip; _sideTooltip=nil
+            U.Tween(t,{BackgroundTransparency=1},0.1)
+            task.delay(0.12,function() pcall(function() t:Destroy() end) end)
+        end
+    end
+
+    -- Toggle sidebar compacta — anima tudo junto
     local function SetCompact(compact)
         isCompact=compact
         local targetSW=compact and SW_COMPACT or SW_FULL
@@ -2713,29 +2794,33 @@ function SunUI:CreateWindow(opts)
             Size=UDim2.new(1,-targetSW,1,-TH),
             Position=UDim2.new(0,targetSW,0,TH),
         },0.26,Enum.EasingStyle.Quart)
-        -- Mostra/oculta labels de texto (nome, username, rank, tab names)
-        local showText = not compact
-        local labelAlpha = showText and 0 or 1  -- TextTransparency: 0=visível
+        local showText=not compact
+        local labelAlpha=showText and 0 or 1
         pcall(function()
             U.Tween(nameLbl,{TextTransparency=labelAlpha},0.2)
             U.Tween(userLbl,{TextTransparency=labelAlpha},0.2)
             U.Tween(rankBadge,{BackgroundTransparency=showText and 0 or 1},0.2)
             U.Tween(rankLbl2,{TextTransparency=labelAlpha},0.2)
         end)
-        -- Atualiza labels das abas
         for _,tab in pairs(Win and Win._tabs or {}) do
             if tab.nLbl then
                 pcall(function() U.Tween(tab.nLbl,{TextTransparency=labelAlpha},0.2) end)
             end
         end
-        pcall(function() compactBtn.Text = compact and "▶" or "◀" end)
-        compactBtn.Size = compact and UDim2.new(1,-8,0,24) or UDim2.new(1,-8,0,24)
+        if compact then HideSideTooltip() end
+        -- Anima a seta do handle
+        pcall(function()
+            U.Tween(handleBtn,{TextColor3=T.Accent},0.1)
+            task.delay(0.13,function()
+                pcall(function()
+                    handleBtn.Text = compact and "▶" or "◀"
+                    U.Tween(handleBtn,{TextColor3=T.TextMuted},0.1)
+                end)
+            end)
+        end)
     end
-    compactBtn.MouseButton1Click:Connect(function() SetCompact(not isCompact) end)
-    -- Aplica estado inicial se CompactSidebar=true
-    if compactSide then
-        task.defer(function() SetCompact(true) end)
-    end
+    handleBtn.MouseButton1Click:Connect(function() SetCompact(not isCompact) end)
+    if compactSide then task.defer(function() SetCompact(true) end) end
     local SBH=44
     local SearchBar=U.New("Frame",{
         Size=UDim2.new(1,0,0,SBH),BackgroundColor3=T.SurfaceHigh,ZIndex=4,
@@ -3052,8 +3137,15 @@ function SunUI:CreateWindow(opts)
         end
 
         Btn.MouseButton1Click:Connect(Activate)
-        Btn.MouseEnter:Connect(function() if Win._active~=tabName then U.Tween(Btn,{BackgroundTransparency=0.85},0.12) end end)
-        Btn.MouseLeave:Connect(function() if Win._active~=tabName then U.Tween(Btn,{BackgroundTransparency=1},0.12) end end)
+        Btn.MouseEnter:Connect(function()
+            if Win._active~=tabName then U.Tween(Btn,{BackgroundTransparency=0.85},0.12) end
+            -- Tooltip lateral quando sidebar compacta
+            pcall(function() ShowSideTooltip(tabName, Btn.AbsolutePosition) end)
+        end)
+        Btn.MouseLeave:Connect(function()
+            if Win._active~=tabName then U.Tween(Btn,{BackgroundTransparency=1},0.12) end
+            pcall(function() HideSideTooltip() end)
+        end)
 
         Win._tabs[tabName]={Btn=Btn,Page=Page,acLine=acLine,nLbl=nLbl,iLbl=iLbl,iBox=iBox}
         if not Win._active then Activate() end
@@ -4123,24 +4215,32 @@ function SunUI:CreateWindow(opts)
 
             -- ═══ SEPARATOR ═══════════════
             function Sec:Separator(text)
-                local f=U.New("Frame",{Size=UDim2.new(1,0,0,20),BackgroundTransparency=1,ZIndex=4},SWrap)
+                -- Usa a cor de fundo da page para não aparecer cinza
+                local f=U.New("Frame",{
+                    Size=UDim2.new(1,0,0,20),
+                    BackgroundColor3=T.Bg,
+                    BackgroundTransparency=1,
+                    ZIndex=4,
+                },SWrap)
                 if text then
+                    local tw = math.max(#tostring(text)*6+20, 80)
+                    local half = (1 - tw/600) / 2  -- proporção aproximada
                     -- Linha esquerda
                     U.New("Frame",{
-                        Size=UDim2.new(0.5,-60,0,1),Position=UDim2.new(0,0,0.5,0),
+                        Size=UDim2.new(0.5,-tw/2-8,0,1),Position=UDim2.new(0,4,0.5,0),
                         BackgroundColor3=T.Border,ZIndex=4,
                     },f)
-                    -- Pontinho accent central
+                    -- Pontinho accent central-esquerdo
                     local dot=U.New("Frame",{
                         Size=UDim2.new(0,4,0,4),
-                        Position=UDim2.new(0.5,-2,0.5,-2),
+                        Position=UDim2.new(0.5,-tw/2-6,0.5,-2),
                         BackgroundColor3=T.Accent,ZIndex=6,
                     },f)
                     U.Corner(999,dot); TrackAccent(dot,"BackgroundColor3")
                     -- Texto flutuante sem fundo
                     U.New("TextLabel",{
-                        Size=UDim2.new(0,110,1,0),
-                        Position=UDim2.new(0.5,-55,0,0),
+                        Size=UDim2.new(0,tw,0,20),
+                        Position=UDim2.new(0.5,-tw/2,0,0),
                         BackgroundTransparency=1,
                         Text=tostring(text),
                         TextColor3=T.TextMuted,
@@ -4148,15 +4248,22 @@ function SunUI:CreateWindow(opts)
                         TextXAlignment=Enum.TextXAlignment.Center,
                         ZIndex=5,
                     },f)
+                    -- Pontinho accent central-direito
+                    local dot2=U.New("Frame",{
+                        Size=UDim2.new(0,4,0,4),
+                        Position=UDim2.new(0.5,tw/2+2,0.5,-2),
+                        BackgroundColor3=T.Accent,ZIndex=6,
+                    },f)
+                    U.Corner(999,dot2); TrackAccent(dot2,"BackgroundColor3")
                     -- Linha direita
                     U.New("Frame",{
-                        Size=UDim2.new(0.5,-60,0,1),Position=UDim2.new(0.5,60,0.5,0),
+                        Size=UDim2.new(0.5,-tw/2-8,0,1),Position=UDim2.new(0.5,tw/2+8,0.5,0),
                         BackgroundColor3=T.Border,ZIndex=4,
                     },f)
                 else
-                    -- Sem texto: linha simples full
+                    -- Sem texto: linha simples full com margem
                     U.New("Frame",{
-                        Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,0.5,0),
+                        Size=UDim2.new(1,-8,0,1),Position=UDim2.new(0,4,0.5,0),
                         BackgroundColor3=T.Border,ZIndex=4,
                     },f)
                 end
@@ -4196,30 +4303,69 @@ function SunUI:CreateWindow(opts)
             -- ═══ ACCENT PICKER ═══════════
             function Sec:AccentPicker(opts)
                 opts=opts or {}
-                local lbl=tostring(opts.Name or "Cor do Hub"); local tip=tostring(opts.Tooltip or "")
+                local lbl=tostring(opts.Name or "Cor de destaque do hub")
+                local tip=tostring(opts.Tooltip or "")
                 local c=Card(44)
-                U.New("TextLabel",{Size=UDim2.new(0.44,0,1,0),Position=UDim2.new(0,10,0,0),BackgroundTransparency=1,Text=lbl,TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=12,TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5},c)
-                local presets={Color3.fromRGB(99,102,241),Color3.fromRGB(168,85,247),Color3.fromRGB(239,68,68),Color3.fromRGB(6,182,212),Color3.fromRGB(16,185,129),Color3.fromRGB(251,191,36),Color3.fromRGB(249,115,22),Color3.fromRGB(236,72,153)}
-                local px=172
-                for _,pc in ipairs(presets) do
-                    local pb=U.New("Frame",{Size=UDim2.new(0,16,0,16),Position=UDim2.new(0,px,0.5,-8),BackgroundColor3=pc,ZIndex=5},c)
-                    U.Corner(999,pb)
-                    local ph2=U.New("TextButton",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,Text="",ZIndex=6},pb)
-                    ph2.MouseButton1Click:Connect(function() SunUI:SetAccentColor(pc) end)
-                    pb.MouseEnter:Connect(function() U.Tween(pb,{Size=UDim2.new(0,20,0,20),Position=UDim2.new(0,px-2,0.5,-10)},0.1) end)
-                    pb.MouseLeave:Connect(function() U.Tween(pb,{Size=UDim2.new(0,16,0,16),Position=UDim2.new(0,px,0.5,-8)},0.1) end)
-                    px=px+19
-                end
-                local rbBtn=U.New("TextButton",{
-                    Size=UDim2.new(0,48,0,22),Position=UDim2.new(1,-56,0.5,-11),
-                    BackgroundColor3=T.Surface,Text="🌈 RGB",TextColor3=T.Text,
-                    Font=Enum.Font.GothamBold,TextSize=8,ZIndex=6,
+                -- Ícone
+                local iBox2=U.New("Frame",{
+                    Size=UDim2.new(0,26,0,26),Position=UDim2.new(0,10,0.5,-13),
+                    BackgroundColor3=T.AccentDim,ZIndex=6,
                 },c)
-                U.Corner(7,rbBtn); U.Stroke(T.Border,1,rbBtn)
-                rbBtn.MouseButton1Click:Connect(function()
-                    SunUI._rbRunning=false; task.wait(0.05)
-                    SunUI._rbTick=0; StartRainbow()
-                end)
+                U.Corner(7,iBox2); TrackAccent(iBox2,"BackgroundColor3")
+                U.New("TextLabel",{
+                    Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
+                    Text="🌈",TextColor3=Color3.new(1,1,1),
+                    Font=Enum.Font.GothamBold,TextSize=12,ZIndex=7,
+                },iBox2)
+                -- Label nome
+                U.New("TextLabel",{
+                    Size=UDim2.new(0.5,0,1,0),Position=UDim2.new(0,44,0,0),
+                    BackgroundTransparency=1,Text=lbl,
+                    TextColor3=T.Text,Font=Enum.Font.GothamBold,TextSize=11,
+                    TextXAlignment=Enum.TextXAlignment.Left,ZIndex=5,
+                },c)
+                -- Estado (Rainbow ON/OFF)
+                local stateLbl=U.New("TextLabel",{
+                    Size=UDim2.new(0,70,0,14),Position=UDim2.new(1,-120,0.5,-7),
+                    BackgroundTransparency=1,
+                    Text=SunUI._rbRunning and "Rainbow ON" or "Rainbow OFF",
+                    TextColor3=SunUI._rbRunning and T.Accent or T.TextMuted,
+                    Font=Enum.Font.Gotham,TextSize=9,
+                    TextXAlignment=Enum.TextXAlignment.Right,ZIndex=5,
+                },c)
+                -- Toggle track
+                local rbOn=SunUI._rbRunning or false
+                local rbTrack=U.New("Frame",{
+                    Size=UDim2.new(0,36,0,20),Position=UDim2.new(1,-46,0.5,-10),
+                    BackgroundColor3=rbOn and T.Accent or T.ToggleOff,ZIndex=5,
+                },c)
+                U.Corner(999,rbTrack)
+                local rbKnob=U.New("Frame",{
+                    Size=UDim2.new(0,16,0,16),
+                    Position=rbOn and UDim2.new(0,18,0.5,-8) or UDim2.new(0,2,0.5,-8),
+                    BackgroundColor3=Color3.new(1,1,1),ZIndex=6,
+                },rbTrack)
+                U.Corner(999,rbKnob)
+                local function SetRainbow(v)
+                    rbOn=v
+                    U.Tween(rbTrack,{BackgroundColor3=v and T.Accent or T.ToggleOff},0.2)
+                    U.Tween(rbKnob,{Position=v and UDim2.new(0,18,0.5,-8) or UDim2.new(0,2,0.5,-8)},0.2)
+                    pcall(function()
+                        stateLbl.Text=v and "Rainbow ON" or "Rainbow OFF"
+                        stateLbl.TextColor3=v and T.Accent or T.TextMuted
+                    end)
+                    if v then
+                        SunUI._rbTick=0; StartRainbow()
+                    else
+                        SunUI._rbRunning=false
+                        SunUI:SetAccentColor(Color3.fromRGB(99,102,241))
+                    end
+                end
+                local hitRb=U.New("TextButton",{
+                    Size=UDim2.new(0,36,0,20),Position=UDim2.new(1,-46,0.5,-10),
+                    BackgroundTransparency=1,Text="",ZIndex=7,
+                },c)
+                hitRb.MouseButton1Click:Connect(function() SetRainbow(not rbOn) end)
                 if tip~="" then U.Tooltip(c,tip) end
                 return {_element=c}
             end
@@ -6500,13 +6646,15 @@ function SunUI:CreateWindow(opts)
                     return Obj
                 end
                 function SecObj:Separator(text2)
-                    local sf=U.New("Frame",{Size=UDim2.new(1,0,0,text2 and 20 or 8),BackgroundTransparency=1,ZIndex=4},SWrap)
+                    local sf=U.New("Frame",{Size=UDim2.new(1,0,0,20),BackgroundTransparency=1,ZIndex=4},SWrap)
                     if text2 then
-                        U.New("Frame",{Size=UDim2.new(0.35,0,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=T.Border,ZIndex=4},sf)
-                        U.New("TextLabel",{Size=UDim2.new(0.3,0,1,0),Position=UDim2.new(0.35,0,0,0),BackgroundTransparency=1,Text=tostring(text2),TextColor3=T.TextMuted,Font=Enum.Font.Gotham,TextSize=9,ZIndex=4},sf)
-                        U.New("Frame",{Size=UDim2.new(0.35,0,0,1),Position=UDim2.new(0.65,0,0.5,0),BackgroundColor3=T.Border,ZIndex=4},sf)
+                        U.New("Frame",{Size=UDim2.new(0.5,-60,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=T.Border,ZIndex=4},sf)
+                        local dot2=U.New("Frame",{Size=UDim2.new(0,4,0,4),Position=UDim2.new(0.5,-2,0.5,-2),BackgroundColor3=T.Accent,ZIndex=6},sf)
+                        U.Corner(999,dot2); TrackAccent(dot2,"BackgroundColor3")
+                        U.New("TextLabel",{Size=UDim2.new(0,110,1,0),Position=UDim2.new(0.5,-55,0,0),BackgroundTransparency=1,Text=tostring(text2),TextColor3=T.TextMuted,Font=Enum.Font.GothamBold,TextSize=9,TextXAlignment=Enum.TextXAlignment.Center,ZIndex=5},sf)
+                        U.New("Frame",{Size=UDim2.new(0.5,-60,0,1),Position=UDim2.new(0.5,60,0.5,0),BackgroundColor3=T.Border,ZIndex=4},sf)
                     else
-                        U.New("Frame",{Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0.5,0),BackgroundColor3=T.Border,ZIndex=4},sf)
+                        U.New("Frame",{Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,0.5,0),BackgroundColor3=T.Border,ZIndex=4},sf)
                     end
                 end
                 -- Para mais componentes, o desenvolvedor pode chamar Tab:Section() normal
