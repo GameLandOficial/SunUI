@@ -1,7 +1,7 @@
 --[[
 ╔══════════════════════════════════════════════════════════════════════╗
 ║   ☀  SunUI  •  v10.0  •  RELEASE EDITION                           ║
-║   Universal  •  Design inspired  •  Executor Compatible    ║
+║   Universal  •  Design Lost-Hub inspired  •  Executor Compatible    ║
 ║                                                                      ║
 ║   DESTAQUES v9 (tudo de v8 + novidades):                            ║
 ║   ✦ 9 temas: Dark, Amethyst, Crimson, Neon, Emerald, Light,        ║
